@@ -4,11 +4,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://cdn.jsdelivr.net/npm/daisyui@3.2.1/dist/full.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
-    <script type="module">
-      import heroicons from 'https://cdn.jsdelivr.net/npm/heroicons@2.0.18/+esm'
-      </script>
 </head>
 <body>
+  <div class="preloader" style="display: none;">
+    <div class="centrize full-width">
+      <div class="vertical-center">
+        <div class="spinner" style="display: none;">
+          <div class="double-bounce1"></div>
+          <div class="double-bounce2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
     <div class="hero min-h-screen bg-base-200">
         <div class="hero-content flex-col lg:flex-row">
           <img src="https://cdn.discordapp.com/avatars/135426949748097024/a4841ef6c3fef48def61d758a5600416.png?size=1024" class="shadow-2xl w-64" />
@@ -50,5 +58,13 @@
           <p>u're currently viewing a temporary website</p>
         </div>
       </footer>
+
+	<script src="./js/jquery.min.js"></script>
+	<script src="./js/jquery.validate.js"></script>
+	<script src="./js/particles.js"></script>
+	<script src="./js/typed.js"></script>
+	<script src="./js/main.js"></script>
+	<script src="./js/particles-setting.js"></script>
+
 </body>
 </html>
