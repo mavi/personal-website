@@ -17,3 +17,13 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes snowfall {
+  0% {
+    transform: translateY(-10vh);
+  }
+
+  100% {
+    transform: translateY(100vh);
+  }
+}

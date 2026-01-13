@@ -16,7 +16,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ data }) => {
     const [views, setViews] = useState<number>(data.views || 0);
 
     useEffect(() => {
-        const fetchViews = async () => {
+        // Initial fetch (increments view)
+        const initViews = async () => {
             try {
                 const res = await fetch('/api/views', { method: 'POST' });
                 const json = await res.json();
@@ -26,7 +27,22 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ data }) => {
             }
         };
 
-        fetchViews();
+        // Polling fetch (just reads)
+        const pollViews = async () => {
+            try {
+                const res = await fetch('/api/views', { method: 'GET' });
+                const json = await res.json();
+                setViews(json.views);
+            } catch (error) {
+                console.error('Failed to poll views:', error);
+            }
+        };
+
+        initViews();
+
+        const interval = setInterval(pollViews, 5000); // Poll every 5 seconds
+
+        return () => clearInterval(interval);
     }, []);
 
 
@@ -36,7 +52,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ data }) => {
         <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="relative z-10 w-full max-w-3xl mx-4 glass-card rounded-[2rem] p-8 md:p-12 overflow-hidden"
+            className="relative z-10 w-full max-w-5xl mx-4 glass-card rounded-[2rem] p-8 md:p-12 overflow-hidden"
             whileHover={{
                 scale: 1.02,
                 y: -5,
