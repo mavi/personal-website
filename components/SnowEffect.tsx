@@ -29,7 +29,7 @@ export const SnowEffect = () => {
     if (snowflakes.length === 0) return null;
 
     return (
-        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
+        <div className="fixed inset-0 pointer-events-none z-[-1] overflow-hidden" aria-hidden="true">
             {snowflakes.map((flake) => (
                 <div
                     key={flake.id}
