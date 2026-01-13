@@ -53,10 +53,24 @@ async function incrementViews() {
 
 export async function GET() {
     const views = await getViews();
-    return NextResponse.json({ views });
+    const hasKvEnv = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+    return NextResponse.json({
+        views,
+        debug: {
+            hasKvEnv,
+            storage_mode: hasKvEnv ? 'vercel-kv' : 'local-file'
+        }
+    });
 }
 
 export async function POST() {
     const views = await incrementViews();
-    return NextResponse.json({ views });
+    const hasKvEnv = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+    return NextResponse.json({
+        views,
+        debug: {
+            hasKvEnv,
+            storage_mode: hasKvEnv ? 'vercel-kv' : 'local-file'
+        }
+    });
 }
