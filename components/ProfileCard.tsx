@@ -92,7 +92,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ data }) => {
             />
 
             {/* Profile Content */}
-            <div className="relative z-10 flex flex-col items-center text-center gap-6">
+            <div className="relative z-10 flex flex-col items-center text-center gap-4">
 
                 {/* View Count */}
                 <div className="flex items-center gap-2 px-4 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-white/50 uppercase tracking-widest hover:bg-white/10 transition-colors">
@@ -102,7 +102,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ data }) => {
                 {/* Avatar Area */}
                 {data.avatarUrl && (
                     <div className="relative">
-                        <div className="w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-white/10 shadow-2xl"
+                        <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-white/10 shadow-2xl"
                             style={{ borderColor: themeColor ? `${themeColor}40` : undefined }}>
                             <Image
                                 src={data.avatarUrl}
@@ -119,7 +119,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ data }) => {
                     <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white">
                         {data.name}
                     </h1>
-                    {data.role && <p className="text-white/40 text-sm md:text-base font-medium uppercase tracking-widest">{data.role}</p>}
+                    {data.role && <p className="text-white/40 text-sm md:text-base font-medium">{data.role}</p>}
                 </div>
 
                 {/* Bio */}
