@@ -1,9 +1,7 @@
 'use client';
 
 
-import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Eye } from 'lucide-react';
 import { ProfileData } from '@/types';
 import { SocialLinks } from './SocialLinks';
 import { motion } from 'framer-motion';
@@ -13,45 +11,6 @@ interface ProfileCardProps {
 }
 
 export const ProfileCard: React.FC<ProfileCardProps> = ({ data }) => {
-    const [views, setViews] = useState<number>(data.views || 0);
-
-    useEffect(() => {
-        // Initial fetch (increments view)
-        const initViews = async () => {
-            try {
-                const res = await fetch('/api/views', {
-                    method: 'POST',
-                    cache: 'no-store'
-                });
-                const json = await res.json();
-                setViews(json.views);
-            } catch (error) {
-                console.error('Failed to update views:', error);
-            }
-        };
-
-        // Polling fetch (just reads)
-        const pollViews = async () => {
-            try {
-                const res = await fetch('/api/views', {
-                    method: 'GET',
-                    cache: 'no-store'
-                });
-                const json = await res.json();
-                setViews(json.views);
-            } catch (error) {
-                console.error('Failed to poll views:', error);
-            }
-        };
-
-        initViews();
-
-        const interval = setInterval(pollViews, 5000); // Poll every 5 seconds
-
-        return () => clearInterval(interval);
-    }, []);
-
-
     const themeColor = data.theme?.color;
 
     return (
@@ -93,11 +52,6 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ data }) => {
 
             {/* Profile Content */}
             <div className="relative z-10 flex flex-col items-center text-center gap-4">
-
-                {/* View Count */}
-                <div className="flex items-center gap-2 px-4 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-white/50 uppercase tracking-widest hover:bg-white/10 transition-colors">
-                    <Eye size={14} /> <span>{views.toLocaleString()}</span>
-                </div>
 
                 {/* Avatar Area */}
                 {data.avatarUrl && (
