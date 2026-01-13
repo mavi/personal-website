@@ -1,4 +1,4 @@
-import ProfileCard from "@/components/ProfileCard";
+import { ProfileCard } from "@/components/ProfileCard";
 import profileData from "@/data/profile.json";
 import { ProfileData } from "@/types";
 
