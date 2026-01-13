@@ -52,7 +52,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ data }) => {
         <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="relative z-10 w-full max-w-5xl mx-4 glass-card rounded-[2rem] p-8 md:p-12 overflow-hidden"
+            className="relative z-10 w-full max-w-4xl mx-4 glass-card rounded-[2rem] p-8 md:p-12 overflow-hidden"
             whileHover={{
                 scale: 1.02,
                 y: -5,
