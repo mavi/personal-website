@@ -1,0 +1,23 @@
+{
+  "name": "erenowski",
+  "verified": false,
+  "role": "Network Solutions",
+  "location": "",
+  "views": 907,
+  "bio": "",
+  "avatarUrl": "",
+  "backgroundUrl": "https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?q=80&w=2074&auto=format&fit=crop",
+  "socials": [
+    {
+      "platform": "discord",
+      "url": "https://discord.gg/konum"
+    },
+    {
+      "platform": "github",
+      "url": "https://github.com/mavi"
+    }
+  ],
+  "theme": {
+    "color": "white"
+  }
+}
