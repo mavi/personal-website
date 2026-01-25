@@ -15,7 +15,7 @@ export default function FlowerPage() {
         let animationFrameId: number;
 
         // Config
-        const FIREFLY_COUNT = 40;
+        const FIREFLY_COUNT = 80;
 
         class Firefly {
             x: number;
@@ -29,9 +29,11 @@ export default function FlowerPage() {
             constructor() {
                 this.x = Math.random() * canvas!.width;
                 this.y = Math.random() * canvas!.height;
-                this.vx = (Math.random() - 0.5) * 0.5;
-                this.vy = (Math.random() - 0.5) * 0.5;
-                this.size = Math.random() * 2;
+                // Faster movement
+                this.vx = (Math.random() - 0.5) * 1.5;
+                this.vy = (Math.random() - 0.5) * 1.5;
+                // Bigger size
+                this.size = 2 + Math.random() * 3;
                 this.alpha = Math.random();
                 this.t = Math.random() * 100;
             }
@@ -39,8 +41,8 @@ export default function FlowerPage() {
             update() {
                 this.x += this.vx;
                 this.y += this.vy;
-                this.t += 0.05;
-                this.alpha = 0.5 + Math.sin(this.t) * 0.5;
+                this.t += 0.1; // Faster blink
+                this.alpha = 0.4 + Math.sin(this.t) * 0.5; // Minimum brightness
 
                 if (this.x < 0) this.x = canvas!.width;
                 else if (this.x > canvas!.width) this.x = 0;
@@ -51,9 +53,9 @@ export default function FlowerPage() {
             draw(ctx: CanvasRenderingContext2D) {
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(255, 255, 200, ${this.alpha})`;
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = 'rgba(255, 255, 200, 0.8)';
+                ctx.fillStyle = `rgba(255, 255, 150, ${this.alpha})`; // More yellow
+                ctx.shadowBlur = 15; // Stronger glow
+                ctx.shadowColor = 'rgba(255, 255, 100, 0.9)';
                 ctx.fill();
                 ctx.shadowBlur = 0;
             }
@@ -422,7 +424,7 @@ export default function FlowerPage() {
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            fireflies.forEach(f => { f.update(); f.draw(ctx); });
+            // Fireflies moved to end
 
             // Render order: Smallest scale first (furthest back)
             // This requires combining everything or sorting indices.
@@ -449,6 +451,9 @@ export default function FlowerPage() {
                     r.bloom.draw(ctx);
                 }
             });
+
+            // Fireflies on top
+            fireflies.forEach(f => { f.update(); f.draw(ctx); });
 
             animationFrameId = requestAnimationFrame(render);
         };
