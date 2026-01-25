@@ -31,32 +31,60 @@ export default function FlowerPage() {
             growthRate: number;
             petals: { angle: number; length: number; width: number; color: string; offset: number }[] = [];
             hue: number;
+            saturation: number;
+            lightness: number;
             bloomed: boolean;
+            opacity: number;
 
             constructor(x: number, y: number) {
                 this.x = x;
                 this.y = y;
                 this.size = 0;
-                this.maxSize = 40 + Math.random() * 40; // Random max size
-                this.growthRate = 0.2 + Math.random() * 0.3;
-                this.hue = 330 + Math.random() * 40; // Pinks to Reds (330-370/10)
+                this.maxSize = 60 + Math.random() * 60; // Larger flowers
+                this.growthRate = 0.1 + Math.random() * 0.2; // Slower, smoother growth
+
+                // Romantic palette: Deep reds (340-360), Soft Pinks (330-350), Creamy Whites (warm)
+                // Weighted random for better color distribution
+                const rand = Math.random();
+                if (rand < 0.30) {
+                    // Deep Red/Burgundy
+                    this.hue = 340 + Math.random() * 20;
+                    this.saturation = 80 + Math.random() * 20;
+                    this.lightness = 20 + Math.random() * 20;
+                } else if (rand < 0.70) {
+                    // Soft Pink/Magenta
+                    this.hue = 320 + Math.random() * 30;
+                    this.saturation = 60 + Math.random() * 20;
+                    this.lightness = 70 + Math.random() * 20;
+                } else {
+                    // White/Cream
+                    this.hue = 30 + Math.random() * 30;
+                    this.saturation = 20 + Math.random() * 30;
+                    this.lightness = 85 + Math.random() * 15;
+                }
+
                 this.bloomed = false;
+                this.opacity = 0;
                 this.generatePetals();
             }
 
             generatePetals() {
-                const layers = 5;
+                const layers = 12; // More layers for "quality" look
                 for (let l = 0; l < layers; l++) {
-                    const count = 6 + l * 4;
+                    const count = 8 + l * 5; // Denser petals
                     for (let i = 0; i < count; i++) {
                         const angle = (Math.PI * 2 / count) * i + (Math.random() * 0.5 - 0.25);
-                        const lightness = 50 + l * 5 + Math.random() * 10;
+
+                        // Slight variation in color per petal for realism
+                        const pLightness = this.lightness + (Math.random() * 10 - 5) - (l * 2); // Inner petals often darker or lighter depending on flower, let's go darker center for depth
+                        const pColor = `hsla(${this.hue}, ${this.saturation}%, ${Math.max(10, pLightness)}%, ${0.1 + l * 0.05})`; // Transparency for soft look
+
                         this.petals.push({
                             angle: angle,
-                            length: 0.5 + l * 0.15, // Relative to current size
-                            width: 0.4 + Math.random() * 0.2,
-                            color: `hsl(${this.hue}, ${70 + Math.random() * 20}%, ${lightness}%)`,
-                            offset: Math.random() * 0.2
+                            length: 0.2 + l * 0.08, // Layers grow outwards
+                            width: 0.3 + Math.random() * 0.3,
+                            color: pColor,
+                            offset: Math.random() * 0.5
                         });
                     }
                 }
@@ -65,6 +93,7 @@ export default function FlowerPage() {
             update() {
                 if (this.size < this.maxSize) {
                     this.size += this.growthRate;
+                    if (this.opacity < 1) this.opacity += 0.01;
                 } else {
                     this.bloomed = true;
                 }
@@ -73,13 +102,11 @@ export default function FlowerPage() {
             draw(ctx: CanvasRenderingContext2D) {
                 ctx.save();
                 ctx.translate(this.x, this.y);
+                ctx.globalAlpha = this.opacity; // Fade in
 
-                // Sort petals by "layer" roughly (drawing order is tricky, but inner first? actually outer first usually looks better for overlap)
-                // Simplification: just draw them. Real peonies look messy (in a good way).
-
-                // Let's try drawing "layers" from outside in or inside out.
-                // Inside out makes sense for growth, but painter's algorithm needs back to front.
-                // For a 2D top-down view, outer petals are "below" inner petals.
+                // Soft glow effect
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = `hsla(${this.hue}, ${this.saturation}%, ${this.lightness}%, 0.5)`;
 
                 this.petals.forEach(petal => {
                     const petalLen = this.size * petal.length;
@@ -88,36 +115,35 @@ export default function FlowerPage() {
                     ctx.save();
                     ctx.rotate(petal.angle);
                     ctx.fillStyle = petal.color;
+
+                    // Allow petals to blend softly
+                    ctx.globalCompositeOperation = 'source-over';
+
                     ctx.beginPath();
 
-                    // Draw a ruffled petal path
+                    // More organic petal shape
                     ctx.moveTo(0, 0);
 
-                    // Quadratic or Bezier for petal shape
-                    // Control points for width
+                    // Asymmetric bezier for natural look
                     ctx.bezierCurveTo(
-                        petalWid / 2, petalLen * 0.3,
-                        petalWid, petalLen * 0.8,
+                        petalWid * 0.5, petalLen * 0.4,
+                        petalWid * 1.2, petalLen * 0.8,
                         0, petalLen
                     );
                     ctx.bezierCurveTo(
-                        -petalWid, petalLen * 0.8,
-                        -petalWid / 2, petalLen * 0.3,
+                        -petalWid * 1.2, petalLen * 0.8,
+                        -petalWid * 0.5, petalLen * 0.4,
                         0, 0
                     );
 
                     ctx.fill();
-                    // Optional: minimal stroke for definition
-                    // ctx.strokeStyle = 'rgba(0,0,0,0.05)';
-                    // ctx.stroke();
-
                     ctx.restore();
                 });
 
-                // Center center
+                // Center
                 ctx.beginPath();
-                ctx.arc(0, 0, this.size * 0.2, 0, Math.PI * 2);
-                ctx.fillStyle = `hsl(${this.hue + 10}, 80%, 40%)`;
+                ctx.arc(0, 0, this.size * 0.1, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${this.hue}, ${this.saturation - 20}%, ${Math.max(20, this.lightness - 30)}%, 0.9)`;
                 ctx.fill();
 
                 ctx.restore();
@@ -135,13 +161,14 @@ export default function FlowerPage() {
 
         // Add more periodically
         const interval = setInterval(() => {
-            if (peonies.length < 50) { // Limit count
+            if (peonies.length < 30) { // Keep count reasonable but lush
                 addPeony();
             }
-        }, 800);
+        }, 1200); // Slower appearance for romantic pacing
 
         const render = () => {
-            ctx.fillStyle = '#fdfcf0'; // Creamy background
+            // Background: Deep Black for contrast
+            ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             peonies.forEach(peony => {
