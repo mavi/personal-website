@@ -14,52 +14,7 @@ export default function FlowerPage() {
 
         let animationFrameId: number;
 
-        // Config
-        const FIREFLY_COUNT = 80;
-
-        class Firefly {
-            x: number;
-            y: number;
-            vx: number;
-            vy: number;
-            size: number;
-            alpha: number;
-            t: number;
-
-            constructor() {
-                this.x = Math.random() * canvas!.width;
-                this.y = Math.random() * canvas!.height;
-                // Faster movement
-                this.vx = (Math.random() - 0.5) * 1.5;
-                this.vy = (Math.random() - 0.5) * 1.5;
-                // Bigger size
-                this.size = 2 + Math.random() * 3;
-                this.alpha = Math.random();
-                this.t = Math.random() * 100;
-            }
-
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.t += 0.1; // Faster blink
-                this.alpha = 0.4 + Math.sin(this.t) * 0.5; // Minimum brightness
-
-                if (this.x < 0) this.x = canvas!.width;
-                else if (this.x > canvas!.width) this.x = 0;
-                if (this.y < 0) this.y = canvas!.height;
-                else if (this.y > canvas!.height) this.y = 0;
-            }
-
-            draw(ctx: CanvasRenderingContext2D) {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(255, 255, 150, ${this.alpha})`; // More yellow
-                ctx.shadowBlur = 15; // Stronger glow
-                ctx.shadowColor = 'rgba(255, 255, 100, 0.9)';
-                ctx.fill();
-                ctx.shadowBlur = 0;
-            }
-        }
+        // Config (Fireflies removed)
 
         class Stem {
             x: number;
@@ -329,9 +284,6 @@ export default function FlowerPage() {
             stems: [], leaves: [], blooms: []
         };
 
-        const fireflies: Firefly[] = [];
-        for (let i = 0; i < FIREFLY_COUNT; i++) fireflies.push(new Firefly());
-
         // Spacing cache to prevent overlap
         const occupiedPositions: { x: number, width: number }[] = [];
 
@@ -451,9 +403,6 @@ export default function FlowerPage() {
                     r.bloom.draw(ctx);
                 }
             });
-
-            // Fireflies on top
-            fireflies.forEach(f => { f.update(); f.draw(ctx); });
 
             animationFrameId = requestAnimationFrame(render);
         };
