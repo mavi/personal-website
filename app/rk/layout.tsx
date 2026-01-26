@@ -1,10 +1,10 @@
 
 export const metadata = {
-    title: 'RK ve Çiçekleri',
-    description: 'rk ve cicekleri',
+    title: 'çiçek',
+    description: 'cicek',
     openGraph: {
-        title: 'RK ve Çiçekleri',
-        description: 'rk ve cicekleri',
+        title: 'cicek',
+        description: 'cicek',
     },
 };
 
