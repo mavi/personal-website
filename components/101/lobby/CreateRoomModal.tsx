@@ -4,13 +4,14 @@ import { useState } from 'react'
 
 interface CreateRoomModalProps {
   onClose: () => void
-  onCreate: (name: string, isPaired: boolean, isFolding: boolean) => Promise<{ success: boolean; error?: string }>
+  onCreate: (name: string, isPaired: boolean, isFolding: boolean, password?: string) => Promise<{ success: boolean; error?: string }>
 }
 
 export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
   const [name, setName] = useState('')
   const [isPaired, setIsPaired] = useState(false)
   const [isFolding, setIsFolding] = useState(false)
+  const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -24,7 +25,7 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
     }
 
     setIsLoading(true)
-    const result = await onCreate(name.trim(), isPaired, isFolding)
+    const result = await onCreate(name.trim(), isPaired, isFolding, password.trim() || undefined)
     setIsLoading(false)
 
     if (!result.success) {
@@ -39,7 +40,7 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
           <h2 className="text-xl font-bold">Yeni Oda Oluştur</h2>
           <button
             onClick={onClose}
-            className="text-[#a0a0a0] hover:text-white transition-colors text-2xl"
+            className="text-[#8899aa] hover:text-white transition-colors text-2xl"
           >
             ×
           </button>
@@ -65,32 +66,46 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium mb-2">Oda Şifresi (Opsiyonel)</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="okey-input"
+              placeholder="Boş bırakılırsa şifresiz"
+              disabled={isLoading}
+              maxLength={50}
+            />
+            <p className="text-[10px] text-[#8899aa] mt-1">Şifre koyarsanız sadece bilen kişiler katılabilir</p>
+          </div>
+
           <div className="space-y-3">
             <label className="block text-sm font-medium">Oyun Modu</label>
             
-            <label className="flex items-center gap-3 p-3 rounded-lg bg-[#1a2f23] cursor-pointer hover:bg-[#1a2f23]/80 transition-colors">
+            <label className="flex items-center gap-3 p-3 rounded-lg bg-[#0a1929] cursor-pointer hover:bg-[#0a1929]/80 transition-colors">
               <input
                 type="checkbox"
                 checked={isPaired}
                 onChange={(e) => setIsPaired(e.target.checked)}
-                className="w-5 h-5 rounded border-[#3d5a4a] text-[#d4af37] focus:ring-[#d4af37]"
+                className="w-5 h-5 rounded border-[#1a3a5c] text-[#d4af37] focus:ring-[#d4af37]"
               />
               <div>
                 <span className="font-medium">Eşli Oyun</span>
-                <p className="text-sm text-[#a0a0a0]">2v2 takım oyunu</p>
+                <p className="text-sm text-[#8899aa]">2v2 takım oyunu</p>
               </div>
             </label>
 
-            <label className="flex items-center gap-3 p-3 rounded-lg bg-[#1a2f23] cursor-pointer hover:bg-[#1a2f23]/80 transition-colors">
+            <label className="flex items-center gap-3 p-3 rounded-lg bg-[#0a1929] cursor-pointer hover:bg-[#0a1929]/80 transition-colors">
               <input
                 type="checkbox"
                 checked={isFolding}
                 onChange={(e) => setIsFolding(e.target.checked)}
-                className="w-5 h-5 rounded border-[#3d5a4a] text-[#d4af37] focus:ring-[#d4af37]"
+                className="w-5 h-5 rounded border-[#1a3a5c] text-[#d4af37] focus:ring-[#d4af37]"
               />
               <div>
                 <span className="font-medium">Katlamalı</span>
-                <p className="text-sm text-[#a0a0a0]">Puanlar katlanabilir</p>
+                <p className="text-sm text-[#8899aa]">Puanlar katlanabilir</p>
               </div>
             </label>
           </div>
@@ -117,4 +132,3 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
     </div>
   )
 }
-

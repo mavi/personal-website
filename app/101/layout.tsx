@@ -12,7 +12,7 @@ export default function Okey101Layout({
   children: React.ReactNode
 }) {
   return (
-    <div className="okey-app min-h-screen bg-[#1a2f23]">
+    <div className="okey-app min-h-screen bg-[#0a1929]">
       {children}
     </div>
   )

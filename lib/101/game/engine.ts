@@ -1,7 +1,7 @@
 import { Tile, hasSevenPairs, hasEnoughPairsForOpening, findPairs, isOkeyTile, validateSevenPairs } from './tiles'
-import { validatePer, validateOpening, canFinishGame } from './validation'
+import { validatePer, validateOpening, canAddToPer } from './validation'
 import { calculateFinalScores, FinishType, GameMode, PlayerScore } from './scoring'
-import { dealTiles, drawFromDeck, drawFromDiscard, discardTile, addToHand, removeTilesFromHand } from './deck'
+import { dealTiles, drawFromDeck, addToHand, removeTilesFromHand } from './deck'
 import { TileColor, TileNumber, SeatPosition, SEAT_POSITIONS, MAX_PLAYERS } from './constants'
 
 export interface Player {
@@ -19,11 +19,14 @@ export interface OpenedSet {
   type: 'run' | 'set'
 }
 
+// Per-player discard: each seat has at most one visible discard tile
+export type PlayerDiscards = Record<SeatPosition, Tile | null>
+
 export interface GameEngineState {
   players: Player[]
   hands: Record<string, Tile[]>
   deck: Tile[]
-  discardPile: Tile[]
+  playerDiscards: PlayerDiscards
   openedSets: OpenedSet[]
   indicator: Tile | null
   okeyDef: { color: TileColor; number: TileNumber } | null
@@ -64,16 +67,20 @@ export function initializeGame(
     startingPlayer.id
   )
 
+  // Initialize per-player discards (all null)
+  const playerDiscards: PlayerDiscards = { 0: null, 1: null, 2: null, 3: null }
+
   return {
     players: players.map(p => ({ ...p, hasOpened: false })),
     hands,
     deck,
-    discardPile: [],
+    playerDiscards,
     openedSets: [],
     indicator,
     okeyDef,
     currentTurn: startingSeat,
-    hasDrawnThisTurn: false,
+    // Starting player has 22 tiles and must discard first without drawing
+    hasDrawnThisTurn: true,
     gamePhase: 'playing',
     winner: null,
     finishType: null,
@@ -97,6 +104,16 @@ export function getPlayerById(state: GameEngineState, playerId: string): Player 
 export function isPlayerTurn(state: GameEngineState, playerId: string): boolean {
   const player = getPlayerById(state, playerId)
   return player?.seatPosition === state.currentTurn
+}
+
+// Get the seat position of the player to the left (previous player)
+export function getLeftSeat(seatPosition: SeatPosition): SeatPosition {
+  return ((seatPosition + 3) % 4) as SeatPosition
+}
+
+// Get the seat position of the player to the right (next player)
+export function getRightSeat(seatPosition: SeatPosition): SeatPosition {
+  return ((seatPosition + 1) % 4) as SeatPosition
 }
 
 // Draw tile from deck
@@ -132,7 +149,7 @@ export function handleDrawFromDeck(
   }
 }
 
-// Draw tile from discard pile
+// Draw tile from left player's discard
 export function handleDrawFromDiscard(
   state: GameEngineState,
   playerId: string
@@ -148,28 +165,32 @@ export function handleDrawFromDiscard(
   if (state.gamePhase !== 'playing') {
     return { error: 'Oyun aktif değil' }
   }
-  
-  if (state.discardPile.length === 0) {
-    return { error: 'Çöp boş' }
+
+  const player = getPlayerById(state, playerId)
+  if (!player) {
+    return { error: 'Oyuncu bulunamadı' }
   }
 
-  const { tile, newPile } = drawFromDiscard(state.discardPile)
-  
-  if (!tile) {
-    return { error: 'Çöp boş' }
+  // Draw from the left player's discard
+  const leftSeat = getLeftSeat(player.seatPosition)
+  const discardTile = state.playerDiscards[leftSeat]
+
+  if (!discardTile) {
+    return { error: 'Soldaki oyuncunun attığı taş yok' }
   }
 
-  const newHand = addToHand(state.hands[playerId], tile)
+  const newHand = addToHand(state.hands[playerId], discardTile)
+  const newDiscards = { ...state.playerDiscards, [leftSeat]: null }
   
   return {
     ...state,
-    discardPile: newPile,
+    playerDiscards: newDiscards,
     hands: { ...state.hands, [playerId]: newHand },
     hasDrawnThisTurn: true
   }
 }
 
-// Discard a tile and end turn
+// Discard a tile to your own discard spot and end turn
 export function handleDiscard(
   state: GameEngineState,
   playerId: string,
@@ -187,25 +208,32 @@ export function handleDiscard(
     return { error: 'Oyun aktif değil' }
   }
 
-  const { newHand, newPile, discardedTile } = discardTile(
-    state.hands[playerId],
-    tileId,
-    state.discardPile
-  )
+  const player = getPlayerById(state, playerId)
+  if (!player) {
+    return { error: 'Oyuncu bulunamadı' }
+  }
+
+  const hand = state.hands[playerId]
+  const tileIndex = hand.findIndex(t => t.id === tileId)
   
-  if (!discardedTile) {
+  if (tileIndex === -1) {
     return { error: 'Taş bulunamadı' }
   }
 
+  const discardedTile = hand[tileIndex]
+  const newHand = [...hand.slice(0, tileIndex), ...hand.slice(tileIndex + 1)]
+
+  // Place tile in player's own discard spot
+  const newDiscards = { ...state.playerDiscards, [player.seatPosition]: discardedTile }
+
   // Check if player finished (0 tiles left after discard)
   if (newHand.length === 0) {
-    // Determine finish type
     let finishType: FinishType = 'normal'
     if (state.okeyDef && isOkeyTile(discardedTile, state.okeyDef)) {
       finishType = 'okey'
     }
     
-    return finishGame(state, playerId, finishType, newHand, newPile)
+    return finishGame(state, playerId, finishType, newHand, newDiscards)
   }
 
   // Move to next turn
@@ -214,7 +242,7 @@ export function handleDiscard(
   return {
     ...state,
     hands: { ...state.hands, [playerId]: newHand },
-    discardPile: newPile,
+    playerDiscards: newDiscards,
     currentTurn: nextTurn,
     hasDrawnThisTurn: false,
     turnStartTime: new Date()
@@ -296,7 +324,7 @@ export function handleOpenSets(
       playerId,
       'elden',
       newHand,
-      state.discardPile
+      state.playerDiscards
     )
   }
 
@@ -308,8 +336,81 @@ export function handleOpenSets(
   }
 }
 
+// Add a tile to an existing opened set on the table
+export function handleAddToSet(
+  state: GameEngineState,
+  playerId: string,
+  tileId: string,
+  setId: string
+): GameEngineState | { error: string } {
+  if (!isPlayerTurn(state, playerId)) {
+    return { error: 'Sıra sizde değil' }
+  }
+
+  if (state.gamePhase !== 'playing') {
+    return { error: 'Oyun aktif değil' }
+  }
+
+  if (!state.okeyDef) {
+    return { error: 'Okey tanımlı değil' }
+  }
+
+  const player = getPlayerById(state, playerId)
+  if (!player || !player.hasOpened) {
+    return { error: 'Önce el açmalısınız' }
+  }
+
+  // Find the tile in player's hand
+  const hand = state.hands[playerId]
+  const tile = hand.find(t => t.id === tileId)
+  if (!tile) {
+    return { error: 'Taş elinizde bulunamadı' }
+  }
+
+  // Find the target set
+  const setIndex = state.openedSets.findIndex(s => s.id === setId)
+  if (setIndex === -1) {
+    return { error: 'Per bulunamadı' }
+  }
+
+  const targetSet = state.openedSets[setIndex]
+  
+  // Check if tile can be added
+  const addResult = canAddToPer(targetSet.tiles, tile, state.okeyDef)
+  if (!addResult.canAdd) {
+    return { error: addResult.error || 'Bu taş bu pere eklenemez' }
+  }
+
+  // Add tile to the set
+  const newSetTiles = addResult.position === 'start'
+    ? [tile, ...targetSet.tiles]
+    : [...targetSet.tiles, tile]
+
+  const newOpenedSets = [...state.openedSets]
+  newOpenedSets[setIndex] = { ...targetSet, tiles: newSetTiles }
+
+  // Remove tile from hand
+  const newHand = hand.filter(t => t.id !== tileId)
+  
+  // Check if player finished (elden)
+  if (newHand.length === 0) {
+    return finishGame(
+      { ...state, openedSets: newOpenedSets },
+      playerId,
+      'elden',
+      newHand,
+      state.playerDiscards
+    )
+  }
+
+  return {
+    ...state,
+    hands: { ...state.hands, [playerId]: newHand },
+    openedSets: newOpenedSets
+  }
+}
+
 // Check for 7-pair opening (instant win)
-// pairs: array of 7 pairs, each pair is [tile, tile]
 export function handleSevenPairOpening(
   state: GameEngineState,
   playerId: string,
@@ -328,13 +429,11 @@ export function handleSevenPairOpening(
     return { error: 'Zaten açtınız veya oyuncu bulunamadı' }
   }
 
-  // Use the shared validator
   const validation = validateSevenPairs(pairs)
   if (!validation.isValid) {
     return { error: validation.error || 'Geçersiz 7 çift' }
   }
 
-  // Verify player has all these tiles
   const tileIds = pairs.flat().map(t => t.id)
   const playerHand = state.hands[playerId]
   const playerTileIds = new Set(playerHand.map(t => t.id))
@@ -345,13 +444,11 @@ export function handleSevenPairOpening(
     }
   }
 
-  // Player must have exactly 14 tiles (7 pairs)
   if (playerHand.length !== 14) {
     return { error: '7 çift açmak için elinizde tam 14 taş olmalı' }
   }
 
-  // 7 pairs = instant win with x2 multiplier
-  return finishGame(state, playerId, 'yedi_cift', [], state.discardPile)
+  return finishGame(state, playerId, 'yedi_cift', [], state.playerDiscards)
 }
 
 // Finish the game
@@ -360,18 +457,17 @@ function finishGame(
   winnerId: string,
   finishType: FinishType,
   winnerHand: Tile[],
-  discardPile: Tile[]
+  playerDiscards: PlayerDiscards
 ): GameEngineState {
   const winner = getPlayerById(state, winnerId)!
   
-  // Calculate final scores
   const playersWithHands = state.players.map(p => ({
     id: p.id,
     seatPosition: p.seatPosition,
     hand: p.id === winnerId ? winnerHand : state.hands[p.id]
   }))
 
-  const scores = calculateFinalScores(
+  calculateFinalScores(
     playersWithHands,
     winnerId,
     winner.seatPosition,
@@ -383,7 +479,7 @@ function finishGame(
   return {
     ...state,
     hands: { ...state.hands, [winnerId]: winnerHand },
-    discardPile,
+    playerDiscards,
     gamePhase: 'finished',
     winner: winnerId,
     finishType
@@ -410,7 +506,6 @@ export function handleTimeout(state: GameEngineState): GameEngineState {
   if (!state.hasDrawnThisTurn) {
     const drawResult = handleDrawFromDeck(state, currentPlayer.id)
     if ('error' in drawResult) {
-      // If can't draw, just skip turn
       return {
         ...state,
         currentTurn: getNextTurn(state.currentTurn),
@@ -431,7 +526,6 @@ export function handleTimeout(state: GameEngineState): GameEngineState {
     }
   }
 
-  // If all else fails, just move to next turn
   return {
     ...state,
     currentTurn: getNextTurn(state.currentTurn),
@@ -439,4 +533,3 @@ export function handleTimeout(state: GameEngineState): GameEngineState {
     turnStartTime: new Date()
   }
 }
-

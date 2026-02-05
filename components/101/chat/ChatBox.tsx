@@ -103,13 +103,13 @@ export function ChatBox({ roomId, userId, username }: ChatBoxProps) {
 
   return (
     <div className="chat-container h-full flex flex-col">
-      <div className="p-3 border-b border-[#3d5a4a]">
+      <div className="p-3 border-b border-[#1a3a5c]">
         <h3 className="font-medium">Sohbet</h3>
       </div>
 
       <div className="chat-messages flex-1 overflow-y-auto p-3 space-y-2">
         {messages.length === 0 ? (
-          <p className="text-center text-[#a0a0a0] text-sm">
+          <p className="text-center text-[#8899aa] text-sm">
             Henüz mesaj yok
           </p>
         ) : (
@@ -125,7 +125,7 @@ export function ChatBox({ roomId, userId, username }: ChatBoxProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={sendMessage} className="chat-input p-3 border-t border-[#3d5a4a]">
+      <form onSubmit={sendMessage} className="chat-input p-3 border-t border-[#1a3a5c]">
         <div className="flex gap-2">
           <input
             type="text"

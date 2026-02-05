@@ -63,12 +63,12 @@ export function ProfileCard({ user, isOwnProfile, onUpdate }: ProfileCardProps) 
             className="w-24 h-24 rounded-full object-cover border-4 border-[#d4af37]"
           />
         ) : (
-          <div className="w-24 h-24 rounded-full bg-[#3d5a4a] flex items-center justify-center text-3xl font-bold border-4 border-[#d4af37]">
+          <div className="w-24 h-24 rounded-full bg-[#1a3a5c] flex items-center justify-center text-3xl font-bold border-4 border-[#d4af37]">
             {user.username[0].toUpperCase()}
           </div>
         )}
         <h1 className="text-xl font-bold mt-4">{user.username}</h1>
-        <p className="text-sm text-[#a0a0a0]">
+        <p className="text-sm text-[#8899aa]">
           Üye: {new Date(user.created_at).toLocaleDateString('tr-TR')}
         </p>
       </div>
@@ -77,22 +77,22 @@ export function ProfileCard({ user, isOwnProfile, onUpdate }: ProfileCardProps) 
       <div className="grid grid-cols-3 gap-4 mb-6 text-center">
         <div>
           <p className="text-2xl font-bold text-[#22c55e]">{user.wins}</p>
-          <p className="text-xs text-[#a0a0a0]">Galibiyet</p>
+          <p className="text-xs text-[#8899aa]">Galibiyet</p>
         </div>
         <div>
           <p className="text-2xl font-bold text-[#ef4444]">{user.losses}</p>
-          <p className="text-xs text-[#a0a0a0]">Mağlubiyet</p>
+          <p className="text-xs text-[#8899aa]">Mağlubiyet</p>
         </div>
         <div>
           <p className="text-2xl font-bold text-[#d4af37]">{winRate}%</p>
-          <p className="text-xs text-[#a0a0a0]">Kazanma</p>
+          <p className="text-xs text-[#8899aa]">Kazanma</p>
         </div>
       </div>
 
       {/* Bio */}
-      <div className="border-t border-[#3d5a4a] pt-4">
+      <div className="border-t border-[#1a3a5c] pt-4">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-medium text-[#a0a0a0]">Hakkında</h3>
+          <h3 className="text-sm font-medium text-[#8899aa]">Hakkında</h3>
           {isOwnProfile && !isEditing && (
             <button
               onClick={() => setIsEditing(true)}

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
 import { createClient } from '@/lib/101/supabase/server'
-import { discardTile } from '@/lib/101/game/deck'
 import { isOkeyTile } from '@/lib/101/game/tiles'
 import { calculateFinalScores } from '@/lib/101/game/scoring'
 import type { Tile } from '@/lib/101/game/tiles'
@@ -12,7 +11,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'okey101-secret-key-change-in-produ
 interface GameStateRow {
   current_turn: number
   hands: Record<string, Tile[]>
-  discard_pile: Tile[]
+  player_discards: Record<string, Tile | null>
   okey_tile: { color: TileColor; number: TileNumber }
   game_phase: string
   has_drawn: boolean
@@ -114,28 +113,28 @@ export async function POST(
     }
 
     const hands = gameState.hands
-    const discardPile = gameState.discard_pile
+    const playerDiscards = gameState.player_discards
     const okeyDef = gameState.okey_tile
+    const hand = hands[decoded.userId]
 
-    // Discard tile
-    const { newHand, newPile, discardedTile } = discardTile(
-      hands[decoded.userId],
-      tileId,
-      discardPile
-    )
-
-    if (!discardedTile) {
+    // Find and remove tile from hand
+    const tileIndex = hand.findIndex((t: Tile) => t.id === tileId)
+    if (tileIndex === -1) {
       return NextResponse.json(
         { error: 'Taş bulunamadı' },
         { status: 400 }
       )
     }
 
+    const discardedTile = hand[tileIndex]
+    const newHand = [...hand.slice(0, tileIndex), ...hand.slice(tileIndex + 1)]
     const newHands = { ...hands, [decoded.userId]: newHand }
+
+    // Place tile in player's own discard spot (seat position)
+    const newPlayerDiscards = { ...playerDiscards, [player.seat_position.toString()]: discardedTile }
 
     // Check if player finished (0 tiles left)
     if (newHand.length === 0) {
-      // Player won!
       const finishType = isOkeyTile(discardedTile, okeyDef) ? 'okey' : 'normal'
       
       // Get room for game mode
@@ -176,7 +175,7 @@ export async function POST(
         .from('game_states')
         .update({
           hands: newHands,
-          discard_pile: newPile,
+          player_discards: newPlayerDiscards,
           game_phase: 'finished',
           winner: decoded.userId,
           finish_type: finishType,
@@ -226,7 +225,7 @@ export async function POST(
       .from('game_states')
       .update({
         hands: newHands,
-        discard_pile: newPile,
+        player_discards: newPlayerDiscards,
         current_turn: nextTurn,
         has_drawn: false,
         turn_start_time: new Date().toISOString(),

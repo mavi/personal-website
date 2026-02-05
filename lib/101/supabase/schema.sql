@@ -27,9 +27,13 @@ CREATE TABLE IF NOT EXISTS rooms (
   status VARCHAR(20) DEFAULT 'waiting' CHECK (status IN ('waiting', 'playing', 'finished')),
   is_paired BOOLEAN DEFAULT FALSE,
   is_folding BOOLEAN DEFAULT FALSE,
+  password VARCHAR(255),
   player_count INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Migration for existing rooms table:
+-- ALTER TABLE rooms ADD COLUMN IF NOT EXISTS password VARCHAR(255);
 
 -- Create index on status for room listings
 CREATE INDEX IF NOT EXISTS idx_rooms_status ON rooms(status);
@@ -41,10 +45,16 @@ CREATE TABLE IF NOT EXISTS room_players (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   seat_position INTEGER NOT NULL CHECK (seat_position >= 0 AND seat_position <= 3),
   is_ready BOOLEAN DEFAULT FALSE,
+  is_connected BOOLEAN DEFAULT TRUE,
+  last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(room_id, user_id),
   UNIQUE(room_id, seat_position)
 );
+
+-- Migration for existing tables:
+-- ALTER TABLE room_players ADD COLUMN IF NOT EXISTS is_connected BOOLEAN DEFAULT TRUE;
+-- ALTER TABLE room_players ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW();
 
 -- Create index for room player lookups
 CREATE INDEX IF NOT EXISTS idx_room_players_room ON room_players(room_id);
@@ -57,17 +67,25 @@ CREATE TABLE IF NOT EXISTS game_states (
   current_turn INTEGER DEFAULT 0,
   hands JSONB DEFAULT '{}',
   deck JSONB DEFAULT '[]',
-  discard_pile JSONB DEFAULT '[]',
+  player_discards JSONB DEFAULT '{"0":null,"1":null,"2":null,"3":null}',
   opened_sets JSONB DEFAULT '[]',
   indicator_tile JSONB,
   okey_tile JSONB,
   game_phase VARCHAR(20) DEFAULT 'waiting' CHECK (game_phase IN ('waiting', 'playing', 'finished')),
   has_drawn BOOLEAN DEFAULT FALSE,
+  hand_order JSONB DEFAULT '{}',
+  flipped_tiles JSONB DEFAULT '{}',
   turn_start_time TIMESTAMP WITH TIME ZONE,
   winner UUID REFERENCES users(id),
   finish_type VARCHAR(20) CHECK (finish_type IN ('normal', 'okey', 'elden', 'yedi_cift')),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Migration for existing game_states table:
+-- ALTER TABLE game_states ADD COLUMN IF NOT EXISTS player_discards JSONB DEFAULT '{"0":null,"1":null,"2":null,"3":null}';
+-- ALTER TABLE game_states ADD COLUMN IF NOT EXISTS hand_order JSONB DEFAULT '{}';
+-- ALTER TABLE game_states ADD COLUMN IF NOT EXISTS flipped_tiles JSONB DEFAULT '{}';
+-- ALTER TABLE game_states DROP COLUMN IF EXISTS discard_pile;
 
 -- Matches (game history) table
 CREATE TABLE IF NOT EXISTS matches (
@@ -132,6 +150,9 @@ CREATE POLICY "Users are viewable by everyone" ON users
 
 CREATE POLICY "Users can update own profile" ON users
   FOR UPDATE USING (true); -- Will be restricted by API
+
+CREATE POLICY "Anyone can register" ON users
+  FOR INSERT WITH CHECK (true);
 
 -- Rooms: Anyone can read, authenticated can create
 CREATE POLICY "Rooms are viewable by everyone" ON rooms

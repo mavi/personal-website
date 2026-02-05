@@ -61,17 +61,20 @@ export const TILE_COLOR_CODES: Record<TileColor, string> = {
   yellow: '#f59e0b'
 }
 
-// Theme colors
+// Theme colors (dark blue table theme)
 export const THEME = {
-  background: '#1a2f23',
-  surface: '#2d4a3a',
-  surfaceLight: '#3d5a4a',
+  background: '#0a1929',
+  surface: '#132f4c',
+  surfaceLight: '#1a3a5c',
   accent: '#d4af37',
   accentHover: '#c9a227',
   text: '#f5f5f5',
-  textMuted: '#a0a0a0',
+  textMuted: '#8899aa',
   success: '#22c55e',
   error: '#ef4444',
-  warning: '#f59e0b'
+  warning: '#f59e0b',
+  tableGreen: '#0d2137',
+  rackColor: '#d4870a',
+  rackColorLight: '#e8a020'
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { Room, RoomPlayer } from '../supabase/types'
 
 interface RoomWithPlayers extends Room {
@@ -10,6 +10,7 @@ interface RoomWithPlayers extends Room {
 export function useRoom(roomId?: string) {
   const [room, setRoom] = useState<RoomWithPlayers | null>(null)
   const [rooms, setRooms] = useState<Room[]>([])
+  const [activeRoom, setActiveRoom] = useState<{ roomId: string; roomName: string } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -27,6 +28,33 @@ export function useRoom(roomId?: string) {
       }
 
       setRooms(data.rooms)
+
+      // Check if user is in an active game (for rejoin)
+      const sessionData = localStorage.getItem('okey101_session')
+      if (sessionData) {
+        const { userId } = JSON.parse(sessionData)
+        // Check room_players for this user in a playing room
+        for (const room of (data.rooms || [])) {
+          if (room.status === 'playing') {
+            // We need to check if user is in this room - we'll do this via a separate call
+            try {
+              const roomRes = await fetch(`/api/101/rooms/${room.id}`)
+              if (roomRes.ok) {
+                const roomData = await roomRes.json()
+                const isInRoom = roomData.room?.players?.some(
+                  (p: { user_id: string }) => p.user_id === userId
+                )
+                if (isInRoom) {
+                  setActiveRoom({ roomId: room.id, roomName: room.name })
+                  break
+                }
+              }
+            } catch {
+              // ignore
+            }
+          }
+        }
+      }
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -59,7 +87,8 @@ export function useRoom(roomId?: string) {
   const createRoom = useCallback(async (
     name: string,
     isPaired: boolean,
-    isFolding: boolean
+    isFolding: boolean,
+    password?: string
   ) => {
     setIsLoading(true)
     setError(null)
@@ -76,7 +105,7 @@ export function useRoom(roomId?: string) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ name, isPaired, isFolding })
+        body: JSON.stringify({ name, isPaired, isFolding, password: password || null })
       })
 
       const data = await response.json()
@@ -95,7 +124,7 @@ export function useRoom(roomId?: string) {
   }, [])
 
   // Join a room
-  const joinRoom = useCallback(async (id: string) => {
+  const joinRoom = useCallback(async (id: string, password?: string) => {
     setIsLoading(true)
     setError(null)
 
@@ -108,13 +137,18 @@ export function useRoom(roomId?: string) {
       const response = await fetch(`/api/101/rooms/${id}/join`, {
         method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        }
+        },
+        body: JSON.stringify({ password })
       })
 
       const data = await response.json()
 
       if (!response.ok) {
+        if (data.requiresPassword) {
+          return { success: false, error: 'Şifre gerekli', requiresPassword: true }
+        }
         throw new Error(data.error || 'Odaya katılınamadı')
       }
 
@@ -216,13 +250,12 @@ export function useRoom(roomId?: string) {
     }
   }, [])
 
-  // Subscribe to room updates using polling instead of realtime (to avoid client creation at build time)
+  // Subscribe to room updates using polling
   useEffect(() => {
     if (!roomId) return
 
     fetchRoom(roomId)
     
-    // Poll for updates every 3 seconds
     const interval = setInterval(() => {
       fetchRoom(roomId)
     }, 3000)
@@ -235,6 +268,7 @@ export function useRoom(roomId?: string) {
   return {
     room,
     rooms,
+    activeRoom,
     isLoading,
     error,
     fetchRooms,

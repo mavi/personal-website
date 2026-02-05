@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const { name, isPaired, isFolding } = await request.json()
+    const { name, isPaired, isFolding, password } = await request.json()
 
     if (!name || name.trim().length < 2) {
       return NextResponse.json(
@@ -97,6 +97,7 @@ export async function POST(request: Request) {
         host_id: decoded.userId,
         is_paired: isPaired ?? false,
         is_folding: isFolding ?? false,
+        password: password ? password.trim() : null,
         status: 'waiting',
         player_count: 1
       })

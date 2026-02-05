@@ -128,7 +128,11 @@ export async function POST(
       startingPlayer.user_id
     )
 
+    // Initialize per-player discards (all null)
+    const playerDiscards: Record<string, null> = { '0': null, '1': null, '2': null, '3': null }
+
     // Create game state
+    // Starting player has 22 tiles and must discard first (has_drawn = true)
     const { error: gameStateError } = await db
       .from('game_states')
       .insert({
@@ -136,12 +140,14 @@ export async function POST(
         current_turn: startingPlayer.seat_position,
         hands: hands,
         deck: deck,
-        discard_pile: [],
+        player_discards: playerDiscards,
         opened_sets: [],
         indicator_tile: indicator,
         okey_tile: okeyDef,
         game_phase: 'playing',
-        has_drawn: false,
+        has_drawn: true,
+        hand_order: {},
+        flipped_tiles: {},
         turn_start_time: new Date().toISOString()
       })
 

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
 import { createClient } from '@/lib/101/supabase/server'
-import { validatePer, validateOpening } from '@/lib/101/game/validation'
+import { canAddToPer } from '@/lib/101/game/validation'
 import type { Tile } from '@/lib/101/game/tiles'
 import type { TileColor, TileNumber } from '@/lib/101/game/constants'
 
@@ -10,8 +10,6 @@ const JWT_SECRET = process.env.JWT_SECRET || 'okey101-secret-key-change-in-produ
 interface GameStateRow {
   current_turn: number
   hands: Record<string, Tile[]>
-  deck: Tile[]
-  player_discards: Record<string, Tile | null>
   opened_sets: Array<{ id: string; playerId: string; tiles: Tile[]; type: string }>
   okey_tile: { color: TileColor; number: TileNumber }
   game_phase: string
@@ -50,11 +48,11 @@ export async function POST(
     }
 
     const { roomId } = await params
-    const { tileIds } = await request.json()
+    const { tileId, setId } = await request.json()
 
-    if (!tileIds || !Array.isArray(tileIds) || tileIds.length < 3) {
+    if (!tileId || !setId) {
       return NextResponse.json(
-        { error: 'En az 3 taş seçmelisiniz' },
+        { error: 'tileId ve setId gerekli' },
         { status: 400 }
       )
     }
@@ -113,62 +111,62 @@ export async function POST(
     const okeyDef = gameState.okey_tile
     const hands = gameState.hands
     const playerHand = hands[decoded.userId] || []
+    const openedSets = gameState.opened_sets || []
 
-    // Get the actual tile objects from the player's hand
-    const tileIdSet = new Set(tileIds as string[])
-    const tilesForSet: Tile[] = []
+    // Check if player has opened (must have opened to add to sets)
+    const hasOpened = openedSets.some(
+      (s: { playerId: string }) => s.playerId === decoded.userId
+    )
 
-    for (const tileId of tileIds) {
-      const tile = playerHand.find((t: Tile) => t.id === tileId)
-      if (!tile) {
-        return NextResponse.json(
-          { error: 'Seçilen taşlardan bazıları elinizde yok' },
-          { status: 400 }
-        )
-      }
-      tilesForSet.push(tile)
-    }
-
-    // Validate the set
-    const validation = validatePer(tilesForSet, okeyDef)
-    if (!validation.isValid) {
+    if (!hasOpened) {
       return NextResponse.json(
-        { error: validation.error || 'Geçersiz per' },
+        { error: 'Önce el açmalısınız' },
         { status: 400 }
       )
     }
 
-    // Check if player has opened before
-    const existingOpenedSets = gameState.opened_sets || []
-    const hasOpened = existingOpenedSets.some(
-      (s: { playerId: string }) => s.playerId === decoded.userId
-    )
-
-    // If first opening, need at least 101 points
-    if (!hasOpened) {
-      const openingValidation = validateOpening([tilesForSet], okeyDef)
-      if (!openingValidation.isValid) {
-        return NextResponse.json(
-          { error: openingValidation.error || 'Açmak için en az 101 puan gerekli' },
-          { status: 400 }
-        )
-      }
+    // Find the tile in player's hand
+    const tile = playerHand.find((t: Tile) => t.id === tileId)
+    if (!tile) {
+      return NextResponse.json(
+        { error: 'Taş elinizde bulunamadı' },
+        { status: 400 }
+      )
     }
 
-    // Remove tiles from hand
-    const newHand = playerHand.filter((t: Tile) => !tileIdSet.has(t.id))
+    // Find the target set
+    const setIndex = openedSets.findIndex((s: { id: string }) => s.id === setId)
+    if (setIndex === -1) {
+      return NextResponse.json(
+        { error: 'Per bulunamadı' },
+        { status: 400 }
+      )
+    }
+
+    const targetSet = openedSets[setIndex]
+
+    // Check if tile can be added
+    const addResult = canAddToPer(targetSet.tiles, tile, okeyDef)
+    if (!addResult.canAdd) {
+      return NextResponse.json(
+        { error: addResult.error || 'Bu taş bu pere eklenemez' },
+        { status: 400 }
+      )
+    }
+
+    // Add tile to the set at the correct position
+    const newSetTiles = addResult.position === 'start'
+      ? [tile, ...targetSet.tiles]
+      : [...targetSet.tiles, tile]
+
+    const newOpenedSets = [...openedSets]
+    newOpenedSets[setIndex] = { ...targetSet, tiles: newSetTiles }
+
+    // Remove tile from hand
+    const newHand = playerHand.filter((t: Tile) => t.id !== tileId)
     const newHands = { ...hands, [decoded.userId]: newHand }
 
-    // Add to opened sets
-    const newSet = {
-      id: `${decoded.userId}-${Date.now()}`,
-      playerId: decoded.userId,
-      tiles: tilesForSet,
-      type: validation.type
-    }
-    const newOpenedSets = [...existingOpenedSets, newSet]
-
-    // Check if player finished (elden - 0 tiles left without discarding)
+    // Check if player finished (elden)
     if (newHand.length === 0) {
       const { data: roomData } = await db
         .from('rooms')
@@ -193,7 +191,6 @@ export async function POST(
         .update({ status: 'finished' })
         .eq('id', roomId)
 
-      // Get all players for match record
       const { data: allPlayersData } = await db
         .from('room_players')
         .select('user_id, seat_position')
@@ -201,7 +198,6 @@ export async function POST(
 
       const allPlayers = (allPlayersData || []) as PlayerRow[]
 
-      // Record match
       const finalScores: Record<string, number> = {}
       for (const p of allPlayers) {
         if (p.user_id === decoded.userId) {
@@ -218,7 +214,7 @@ export async function POST(
               score += t.number
             }
           }
-          finalScores[p.user_id] = score * 2 // elden = x2
+          finalScores[p.user_id] = score * 2
         }
       }
 
@@ -249,7 +245,7 @@ export async function POST(
       })
     }
 
-    // Just update the game state with opened sets
+    // Update the game state
     await db
       .from('game_states')
       .update({
@@ -261,10 +257,11 @@ export async function POST(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Open sets error:', error)
+    console.error('Add to set error:', error)
     return NextResponse.json(
       { error: 'Bir hata oluştu' },
       { status: 500 }
     )
   }
 }
+

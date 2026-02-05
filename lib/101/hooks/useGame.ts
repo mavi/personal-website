@@ -115,11 +115,37 @@ export function useGame(roomId: string) {
     }
   }, [roomId, clearSelection])
 
+  const addToSet = useCallback(async (tileId: string, setId: string) => {
+    try {
+      const token = getAuthToken()
+
+      const response = await fetch(`/api/101/game/${roomId}/add-to-set`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ tileId, setId })
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Taş eklenemedi')
+      }
+
+      clearSelection()
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: (err as Error).message }
+    }
+  }, [roomId, clearSelection])
+
   return {
     selectedTiles,
     drawFromDeck,
     drawFromDiscard,
     discardTile,
-    openSets
+    openSets,
+    addToSet
   }
 }

@@ -51,14 +51,6 @@ export default function ProfilePage() {
     }
   }
 
-  if (authLoading || isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-[#d4af37] text-xl">Yükleniyor...</div>
-      </div>
-    )
-  }
-
   if (error) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -83,15 +75,21 @@ export default function ProfilePage() {
       <div className="min-h-screen flex flex-col">
         <Navbar user={currentUser} />
         <main className="flex-1 flex items-center justify-center">
-          <div className="okey-card text-center">
-            <p className="text-[#a0a0a0] mb-4">Kullanıcı bulunamadı</p>
-            <button
-              onClick={() => router.push('/101')}
-              className="okey-btn okey-btn-secondary"
-            >
-              Lobiye Dön
-            </button>
-          </div>
+          {(authLoading || isLoading) ? (
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-8 h-8 border-2 border-[#d4af37] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <div className="okey-card text-center">
+              <p className="text-[#a0a0a0] mb-4">Kullanıcı bulunamadı</p>
+              <button
+                onClick={() => router.push('/101')}
+                className="okey-btn okey-btn-secondary"
+              >
+                Lobiye Dön
+              </button>
+            </div>
+          )}
         </main>
       </div>
     )

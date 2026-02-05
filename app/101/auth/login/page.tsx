@@ -35,7 +35,7 @@ export default function LoginPage() {
       <div className="okey-card w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-[#d4af37] mb-2">Okey 101</h1>
-          <p className="text-[#a0a0a0]">Hesabınıza giriş yapın</p>
+          <p className="text-[#8899aa]">Hesabınıza giriş yapın</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -79,7 +79,7 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-6 text-center">
-          <p className="text-[#a0a0a0]">
+          <p className="text-[#8899aa]">
             Hesabınız yok mu?{' '}
             <Link href="/101/auth/register" className="text-[#d4af37] hover:underline">
               Kayıt Ol
@@ -88,7 +88,7 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-8 text-center">
-          <Link href="/" className="text-[#a0a0a0] hover:text-[#d4af37] text-sm">
+          <Link href="/" className="text-[#8899aa] hover:text-[#d4af37] text-sm">
             ← Ana Sayfaya Dön
           </Link>
         </div>

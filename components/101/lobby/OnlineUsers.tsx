@@ -11,7 +11,7 @@ export function OnlineUsers() {
         Çevrimiçi
       </h2>
       
-      <div className="text-sm text-[#a0a0a0]">
+      <div className="text-sm text-[#8899aa]">
         <p>Çevrimiçi kullanıcılar burada görünecek</p>
       </div>
     </div>

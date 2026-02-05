@@ -22,16 +22,16 @@ export function ScoreBoard({ scores, playerNames, currentUserId }: ScoreBoardPro
             className={`flex items-center justify-between p-2 rounded ${
               score.playerId === currentUserId
                 ? 'bg-[#d4af37]/10 border border-[#d4af37]/30'
-                : 'bg-[#1a2f23]'
+                : 'bg-[#0a1929]'
             }`}
           >
             <div className="flex items-center gap-2">
-              <span className="text-[#a0a0a0] text-sm w-6">#{index + 1}</span>
+              <span className="text-[#8899aa] text-sm w-6">#{index + 1}</span>
               <span className={score.isWinner ? 'text-[#22c55e] font-medium' : ''}>
                 {playerNames[score.playerId] || 'Oyuncu'}
               </span>
               {score.isWinner && <span className="text-[#22c55e]">🏆</span>}
-              {score.isPartner && <span className="text-xs text-[#a0a0a0]">(Eş)</span>}
+              {score.isPartner && <span className="text-xs text-[#8899aa]">(Eş)</span>}
             </div>
             <div className="text-right">
               <span className={`font-bold ${

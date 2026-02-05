@@ -51,7 +51,7 @@ export default function RegisterPage() {
       <div className="okey-card w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-[#d4af37] mb-2">Okey 101</h1>
-          <p className="text-[#a0a0a0]">Yeni hesap oluşturun</p>
+          <p className="text-[#8899aa]">Yeni hesap oluşturun</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -107,7 +107,7 @@ export default function RegisterPage() {
         </form>
 
         <div className="mt-6 text-center">
-          <p className="text-[#a0a0a0]">
+          <p className="text-[#8899aa]">
             Zaten hesabınız var mı?{' '}
             <Link href="/101/auth/login" className="text-[#d4af37] hover:underline">
               Giriş Yap
@@ -116,7 +116,7 @@ export default function RegisterPage() {
         </div>
 
         <div className="mt-8 text-center">
-          <Link href="/" className="text-[#a0a0a0] hover:text-[#d4af37] text-sm">
+          <Link href="/" className="text-[#8899aa] hover:text-[#d4af37] text-sm">
             ← Ana Sayfaya Dön
           </Link>
         </div>

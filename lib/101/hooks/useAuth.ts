@@ -9,14 +9,33 @@ interface AuthState {
   isAuthenticated: boolean
 }
 
-export function useAuth() {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    isLoading: true,
-    isAuthenticated: false
-  })
+function getInitialAuthState(): AuthState {
+  if (typeof window === 'undefined') {
+    return { user: null, isLoading: true, isAuthenticated: false }
+  }
+  try {
+    const sessionData = localStorage.getItem('okey101_session')
+    if (sessionData) {
+      const parsed = JSON.parse(sessionData)
+      if (parsed.token) {
+        // Optimistic: assume authenticated using cached user
+        return {
+          user: parsed.cachedUser || null,
+          isLoading: false,
+          isAuthenticated: true
+        }
+      }
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return { user: null, isLoading: false, isAuthenticated: false }
+}
 
-  // Check session on mount
+export function useAuth() {
+  const [state, setState] = useState<AuthState>(getInitialAuthState)
+
+  // Verify session in the background on mount
   useEffect(() => {
     checkSession()
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -32,7 +51,7 @@ export function useAuth() {
         return
       }
 
-      const { userId, token } = JSON.parse(sessionData)
+      const { token } = JSON.parse(sessionData)
 
       // Verify session is still valid
       const response = await fetch('/api/101/auth/session', {
@@ -43,6 +62,9 @@ export function useAuth() {
 
       if (response.ok) {
         const { user } = await response.json()
+        // Update cached user in localStorage
+        const existing = JSON.parse(localStorage.getItem('okey101_session') || '{}')
+        localStorage.setItem('okey101_session', JSON.stringify({ ...existing, cachedUser: user }))
         setState({ user, isLoading: false, isAuthenticated: true })
       } else {
         localStorage.removeItem('okey101_session')
@@ -70,10 +92,11 @@ export function useAuth() {
         throw new Error(data.error || 'Giriş başarısız')
       }
 
-      // Store session
+      // Store session with cached user
       localStorage.setItem('okey101_session', JSON.stringify({
         userId: data.user.id,
-        token: data.token
+        token: data.token,
+        cachedUser: data.user
       }))
 
       setState({ user: data.user, isLoading: false, isAuthenticated: true })
@@ -100,10 +123,11 @@ export function useAuth() {
         throw new Error(data.error || 'Kayıt başarısız')
       }
 
-      // Store session
+      // Store session with cached user
       localStorage.setItem('okey101_session', JSON.stringify({
         userId: data.user.id,
-        token: data.token
+        token: data.token,
+        cachedUser: data.user
       }))
 
       setState({ user: data.user, isLoading: false, isAuthenticated: true })

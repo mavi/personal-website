@@ -8,11 +8,14 @@ interface RoomRow {
   id: string
   status: string
   player_count: number
+  password: string | null
 }
 
 interface PlayerRow {
   room_id: string
   seat_position: number
+  user_id: string
+  is_connected: boolean
 }
 
 export async function POST(
@@ -42,11 +45,19 @@ export async function POST(
     }
 
     const { roomId } = await params
+    let bodyPassword: string | undefined
+    try {
+      const body = await request.json()
+      bodyPassword = body?.password
+    } catch {
+      // No body or not JSON - that's fine for rooms without password
+    }
+
     const supabase = await createClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any
 
-    // Check if room exists and is waiting
+    // Check if room exists
     const { data: roomData, error: roomError } = await db
       .from('rooms')
       .select('*')
@@ -62,6 +73,46 @@ export async function POST(
       )
     }
 
+    // Check if user already exists in this room (for rejoin support)
+    const { data: existingInRoomData } = await db
+      .from('room_players')
+      .select('room_id, seat_position, user_id, is_connected')
+      .eq('room_id', roomId)
+      .eq('user_id', decoded.userId)
+      .single()
+
+    const existingInRoom = existingInRoomData as PlayerRow | null
+
+    if (existingInRoom) {
+      if (existingInRoom.is_connected) {
+        // Already connected in this room
+        return NextResponse.json({ success: true, message: 'Zaten bu odasınız' })
+      }
+
+      // Rejoin: player was disconnected, reconnect them
+      if (room.status === 'playing' || room.status === 'waiting') {
+        await db
+          .from('room_players')
+          .update({
+            is_connected: true,
+            last_seen: new Date().toISOString()
+          })
+          .eq('room_id', roomId)
+          .eq('user_id', decoded.userId)
+
+        return NextResponse.json({ success: true, message: 'Odaya geri döndünüz', rejoin: true })
+      }
+    }
+
+    // Check password if room has one
+    if (room.password && room.password !== bodyPassword) {
+      return NextResponse.json(
+        { error: 'Şifre yanlış', requiresPassword: true },
+        { status: 403 }
+      )
+    }
+
+    // Normal join flow - room must be waiting
     if (room.status !== 'waiting') {
       return NextResponse.json(
         { error: 'Bu oda oyunda veya kapanmış' },
@@ -76,19 +127,17 @@ export async function POST(
       )
     }
 
-    // Check if user is already in any room
+    // Check if user is already in a different room
     const { data: existingPlayerData } = await db
       .from('room_players')
       .select('room_id')
       .eq('user_id', decoded.userId)
+      .neq('room_id', roomId)
       .single()
 
     const existingPlayer = existingPlayerData as PlayerRow | null
 
     if (existingPlayer) {
-      if (existingPlayer.room_id === roomId) {
-        return NextResponse.json({ success: true, message: 'Zaten bu odasınız' })
-      }
       return NextResponse.json(
         { error: 'Zaten başka bir odadasınız' },
         { status: 400 }
@@ -118,7 +167,9 @@ export async function POST(
         room_id: roomId,
         user_id: decoded.userId,
         seat_position: seatPosition,
-        is_ready: false
+        is_ready: false,
+        is_connected: true,
+        last_seen: new Date().toISOString()
       })
 
     if (joinError) {

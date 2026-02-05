@@ -25,7 +25,7 @@ export function GameControls({
 }: GameControlsProps) {
   if (!isMyTurn) {
     return (
-      <div className="text-center text-[#a0a0a0] py-4">
+      <div className="text-center text-[#8899aa] py-4">
         Sıra rakipte...
       </div>
     )

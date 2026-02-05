@@ -8,6 +8,8 @@ import { Navbar } from '@/components/101/layout/Navbar'
 import { WaitingRoom } from '@/components/101/game/WaitingRoom'
 import { GameBoard } from '@/components/101/game/GameBoard'
 import { ChatBox } from '@/components/101/chat/ChatBox'
+import { ProfileModal } from '@/components/101/modals/ProfileModal'
+import { HistoryModal } from '@/components/101/modals/HistoryModal'
 import { createClient } from '@/lib/101/supabase/client'
 import type { GameStateFromDB } from '@/lib/101/supabase/types'
 
@@ -46,6 +48,8 @@ export default function RoomPage() {
   const { room, isLoading: roomLoading, leaveRoom, setReady, startGame } = useRoom(roomId)
   const [gameState, setGameState] = useState<GameStateFromDB | null>(null)
   const [showChat, setShowChat] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [orientationLocked, setOrientationLocked] = useState(false)
 
@@ -97,6 +101,30 @@ export default function RoomPage() {
       router.push('/101/auth/login')
     }
   }, [authLoading, isAuthenticated, router])
+
+  // Heartbeat: keep server aware we're connected
+  useEffect(() => {
+    if (!roomId || !isAuthenticated) return
+
+    const sendHeartbeat = async () => {
+      try {
+        const sessionData = localStorage.getItem('okey101_session')
+        if (!sessionData) return
+        const { token } = JSON.parse(sessionData)
+        await fetch(`/api/101/rooms/${roomId}/heartbeat`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      } catch {
+        // ignore heartbeat failures
+      }
+    }
+
+    sendHeartbeat()
+    const heartbeatInterval = setInterval(sendHeartbeat, 5000)
+
+    return () => clearInterval(heartbeatInterval)
+  }, [roomId, isAuthenticated])
 
   // Subscribe to game state changes
   useEffect(() => {
@@ -158,27 +186,24 @@ export default function RoomPage() {
     return result
   }, [startGame, roomId])
 
-  // Loading
-  if (authLoading || roomLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#1a2f23]">
-        <div className="text-[#d4af37] text-xl">Yükleniyor...</div>
-      </div>
-    )
-  }
-
-  // Room not found
+  // Room loading or not found
   if (!room) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#1a2f23]">
+      <div className="min-h-screen flex flex-col bg-[#0a1929]">
         <Navbar user={user} />
         <main className="flex-1 flex items-center justify-center p-4">
-          <div className="okey-card text-center">
-            <p className="text-[#a0a0a0] mb-4">Oda bulunamadı</p>
-            <button onClick={() => router.push('/101')} className="okey-btn okey-btn-secondary">
-              Lobiye Dön
-            </button>
-          </div>
+          {(authLoading || roomLoading) ? (
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-8 h-8 border-2 border-[#d4af37] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <div className="okey-card text-center">
+              <p className="text-[#8899aa] mb-4">Oda bulunamadı</p>
+              <button onClick={() => router.push('/101')} className="okey-btn okey-btn-secondary">
+                Lobiye Dön
+              </button>
+            </div>
+          )}
         </main>
       </div>
     )
@@ -192,7 +217,14 @@ export default function RoomPage() {
     <>
       {/* Navbar: hide on mobile landscape when game is active */}
       <div className={isPlaying && isMobile ? 'landscape-hide' : ''}>
-        <Navbar user={user} showBackButton onBack={handleLeave} />
+        <Navbar
+          user={user}
+          showBackButton
+          onBack={handleLeave}
+          inGame={isPlaying}
+          onShowProfile={() => setShowProfileModal(true)}
+          onShowHistory={() => setShowHistoryModal(true)}
+        />
       </div>
 
       {error && (
@@ -224,7 +256,7 @@ export default function RoomPage() {
         </div>
 
         {/* Chat sidebar - desktop only */}
-        <div className="w-72 border-l border-[#3d5a4a] hidden lg:block">
+        <div className="w-72 border-l border-[#1a3a5c] hidden lg:block">
           <ChatBox roomId={roomId} userId={user?.id || ''} username={user?.username || ''} />
         </div>
 
@@ -242,12 +274,12 @@ export default function RoomPage() {
         {showChat && (
           <div className="lg:hidden fixed inset-0 z-50 bg-black/50" onClick={() => setShowChat(false)}>
             <div
-              className="absolute right-0 top-0 bottom-0 w-80 max-w-full bg-[#2d4a3a] border-l border-[#3d5a4a]"
+              className="absolute right-0 top-0 bottom-0 w-80 max-w-full bg-[#132f4c] border-l border-[#1a3a5c]"
               onClick={e => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between p-3 border-b border-[#3d5a4a]">
+              <div className="flex items-center justify-between p-3 border-b border-[#1a3a5c]">
                 <span className="font-medium">Sohbet</span>
-                <button onClick={() => setShowChat(false)} className="text-[#a0a0a0] hover:text-white text-xl">×</button>
+                <button onClick={() => setShowChat(false)} className="text-[#8899aa] hover:text-white text-xl">×</button>
               </div>
               <div style={{ height: 'calc(100% - 48px)' }}>
                 <ChatBox roomId={roomId} userId={user?.id || ''} username={user?.username || ''} />
@@ -266,13 +298,29 @@ export default function RoomPage() {
       {needsCSSRotation && isPlaying && (
         <button
           onClick={handleLeave}
-          className="fixed top-2 left-2 z-[10000] text-[#a0a0a0] bg-[#2d4a3a]/90 rounded-full w-8 h-8 flex items-center justify-center text-sm border border-[#3d5a4a]"
+          className="fixed top-2 left-2 z-[10000] text-[#8899aa] bg-[#132f4c]/90 rounded-full w-8 h-8 flex items-center justify-center text-sm border border-[#1a3a5c]"
           style={{ transform: 'rotate(90deg)', transformOrigin: 'center' }}
         >
           ←
         </button>
       )}
       {roomContent}
+
+      {/* In-game modals */}
+      {showProfileModal && user && (
+        <ProfileModal
+          username={user.username}
+          currentUserId={user.id}
+          isOwnProfile={true}
+          onClose={() => setShowProfileModal(false)}
+        />
+      )}
+      {showHistoryModal && user && (
+        <HistoryModal
+          currentUserId={user.id}
+          onClose={() => setShowHistoryModal(false)}
+        />
+      )}
     </div>
   )
 }

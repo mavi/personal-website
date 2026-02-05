@@ -43,7 +43,7 @@ export function Stats({ user }: StatsProps) {
           <span className="text-[#22c55e]">Galibiyet</span>
           <span className="text-[#ef4444]">Mağlubiyet</span>
         </div>
-        <div className="h-4 bg-[#1a2f23] rounded-full overflow-hidden flex">
+        <div className="h-4 bg-[#0a1929] rounded-full overflow-hidden flex">
           <div
             className="h-full bg-[#22c55e] transition-all duration-500"
             style={{ width: `${winRate}%` }}
@@ -60,9 +60,9 @@ export function Stats({ user }: StatsProps) {
 
 function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className="bg-[#1a2f23] rounded-lg p-4 text-center">
+    <div className="bg-[#0a1929] rounded-lg p-4 text-center">
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
-      <p className="text-xs text-[#a0a0a0] mt-1">{label}</p>
+      <p className="text-xs text-[#8899aa] mt-1">{label}</p>
     </div>
   )
 }

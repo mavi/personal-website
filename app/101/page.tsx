@@ -12,7 +12,7 @@ import { OnlineUsers } from '@/components/101/lobby/OnlineUsers'
 export default function LobbyPage() {
   const router = useRouter()
   const { user, isLoading: authLoading, isAuthenticated } = useAuth()
-  const { rooms, isLoading: roomsLoading, fetchRooms, createRoom, joinRoom } = useRoom()
+  const { rooms, activeRoom, isLoading: roomsLoading, fetchRooms, createRoom, joinRoom } = useRoom()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
   useEffect(() => {
@@ -24,14 +24,13 @@ export default function LobbyPage() {
   useEffect(() => {
     if (isAuthenticated) {
       fetchRooms()
-      // Refresh rooms every 5 seconds
       const interval = setInterval(fetchRooms, 5000)
       return () => clearInterval(interval)
     }
   }, [isAuthenticated, fetchRooms])
 
-  const handleCreateRoom = async (name: string, isPaired: boolean, isFolding: boolean) => {
-    const result = await createRoom(name, isPaired, isFolding)
+  const handleCreateRoom = async (name: string, isPaired: boolean, isFolding: boolean, password?: string) => {
+    const result = await createRoom(name, isPaired, isFolding, password)
     if (result.success && result.roomId) {
       setIsCreateModalOpen(false)
       router.push(`/101/room/${result.roomId}`)
@@ -39,20 +38,12 @@ export default function LobbyPage() {
     return result
   }
 
-  const handleJoinRoom = async (roomId: string) => {
-    const result = await joinRoom(roomId)
+  const handleJoinRoom = async (roomId: string, password?: string) => {
+    const result = await joinRoom(roomId, password)
     if (result.success) {
       router.push(`/101/room/${roomId}`)
     }
     return result
-  }
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-[#d4af37] text-xl">Yükleniyor...</div>
-      </div>
-    )
   }
 
   return (
@@ -60,6 +51,22 @@ export default function LobbyPage() {
       <Navbar user={user} />
       
       <main className="flex-1 container mx-auto px-4 py-8">
+        {/* Rejoin banner */}
+        {activeRoom && (
+          <div className="rejoin-banner">
+            <div>
+              <p className="text-sm font-medium text-[#d4af37]">Devam eden oyununuz var!</p>
+              <p className="text-xs text-[#8899aa]">{activeRoom.roomName}</p>
+            </div>
+            <button
+              onClick={() => router.push(`/101/room/${activeRoom.roomId}`)}
+              className="okey-btn okey-btn-primary"
+            >
+              Devam Et
+            </button>
+          </div>
+        )}
+
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Main content */}
           <div className="flex-1">
@@ -77,6 +84,7 @@ export default function LobbyPage() {
               rooms={rooms}
               isLoading={roomsLoading}
               onJoin={handleJoinRoom}
+              currentUserId={user?.id}
             />
           </div>
           
@@ -96,4 +104,3 @@ export default function LobbyPage() {
     </div>
   )
 }
-

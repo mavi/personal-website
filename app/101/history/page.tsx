@@ -53,14 +53,6 @@ export default function HistoryPage() {
     }
   }
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-[#d4af37] text-xl">Yükleniyor...</div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar user={user} />
@@ -69,7 +61,9 @@ export default function HistoryPage() {
         <h1 className="text-2xl font-bold mb-6">Maç Geçmişi</h1>
         
         {isLoading ? (
-          <div className="text-center text-[#a0a0a0]">Yükleniyor...</div>
+          <div className="flex justify-center py-12">
+            <div className="w-8 h-8 border-2 border-[#d4af37] border-t-transparent rounded-full animate-spin" />
+          </div>
         ) : error ? (
           <div className="okey-card text-center">
             <p className="text-[#ef4444]">{error}</p>

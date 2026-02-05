@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
 import { createClient } from '@/lib/101/supabase/server'
-import { drawFromDeck, drawFromDiscard, addToHand } from '@/lib/101/game/deck'
+import { drawFromDeck, addToHand } from '@/lib/101/game/deck'
 import type { Tile } from '@/lib/101/game/tiles'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'okey101-secret-key-change-in-production'
@@ -10,7 +10,7 @@ interface GameStateRow {
   current_turn: number
   hands: Record<string, Tile[]>
   deck: Tile[]
-  discard_pile: Tile[]
+  player_discards: Record<string, Tile | null>
   game_phase: string
   has_drawn: boolean
 }
@@ -107,11 +107,11 @@ export async function POST(
 
     const hands = gameState.hands
     const deck = gameState.deck
-    const discardPile = gameState.discard_pile
+    const playerDiscards = gameState.player_discards
 
     let tile: Tile | null = null
     let newDeck = deck
-    let newDiscardPile = discardPile
+    let newPlayerDiscards = { ...playerDiscards }
 
     if (source === 'deck') {
       const result = drawFromDeck(deck)
@@ -124,15 +124,19 @@ export async function POST(
       tile = result.tile
       newDeck = result.newDeck
     } else if (source === 'discard') {
-      const result = drawFromDiscard(discardPile)
-      if (!result.tile) {
+      // Draw from the left player's discard
+      const leftSeat = ((player.seat_position + 3) % 4).toString()
+      const discardTile = playerDiscards[leftSeat]
+
+      if (!discardTile) {
         return NextResponse.json(
-          { error: 'Çöp boş' },
+          { error: 'Soldaki oyuncunun attığı taş yok' },
           { status: 400 }
         )
       }
-      tile = result.tile
-      newDiscardPile = result.newPile
+
+      tile = discardTile
+      newPlayerDiscards = { ...playerDiscards, [leftSeat]: null }
     } else {
       return NextResponse.json(
         { error: 'Geçersiz kaynak' },
@@ -150,7 +154,7 @@ export async function POST(
       .update({
         hands: newHands,
         deck: newDeck,
-        discard_pile: newDiscardPile,
+        player_discards: newPlayerDiscards,
         has_drawn: true,
         updated_at: new Date().toISOString()
       })

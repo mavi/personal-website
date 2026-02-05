@@ -11,7 +11,7 @@ export function MatchHistory({ matches, currentUserId }: MatchHistoryProps) {
   if (matches.length === 0) {
     return (
       <div className="okey-card text-center py-8">
-        <p className="text-[#a0a0a0]">Henüz maç geçmişi yok</p>
+        <p className="text-[#8899aa]">Henüz maç geçmişi yok</p>
       </div>
     )
   }
@@ -41,7 +41,7 @@ export function MatchHistory({ matches, currentUserId }: MatchHistoryProps) {
                 }`}>
                   {isWinner ? '🏆 Galibiyet' : '❌ Mağlubiyet'}
                 </span>
-                <span className="text-sm text-[#a0a0a0]">
+                <span className="text-sm text-[#8899aa]">
                   {new Date(match.played_at).toLocaleDateString('tr-TR', {
                     day: 'numeric',
                     month: 'short',
@@ -52,7 +52,7 @@ export function MatchHistory({ matches, currentUserId }: MatchHistoryProps) {
               </div>
 
               <div className="flex flex-wrap gap-2 text-sm">
-                <span className="okey-badge bg-[#3d5a4a] text-[#a0a0a0]">
+                <span className="okey-badge bg-[#1a3a5c] text-[#8899aa]">
                   {match.game_mode === 'paired' ? 'Eşli' : 'Eşsiz'}
                 </span>
                 {match.finish_type && match.finish_type !== 'normal' && (
@@ -70,7 +70,7 @@ export function MatchHistory({ matches, currentUserId }: MatchHistoryProps) {
               </div>
 
               {match.duration && (
-                <p className="text-xs text-[#a0a0a0] mt-2">
+                <p className="text-xs text-[#8899aa] mt-2">
                   Süre: {Math.floor(match.duration / 60)} dk {match.duration % 60} sn
                 </p>
               )}

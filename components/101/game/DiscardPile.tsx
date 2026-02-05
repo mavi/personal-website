@@ -31,12 +31,12 @@ export function DiscardPile({ tiles, canDraw, onDraw }: DiscardPileProps) {
         {topTile ? (
           <Tile tile={topTile} />
         ) : (
-          <div className="w-10 h-14 rounded-md border-2 border-dashed border-[#3d5a4a] flex items-center justify-center">
-            <span className="text-[#3d5a4a] text-xs">Boş</span>
+          <div className="w-10 h-14 rounded-md border-2 border-dashed border-[#1a3a5c] flex items-center justify-center">
+            <span className="text-[#1a3a5c] text-xs">Boş</span>
           </div>
         )}
       </div>
-      <p className="text-xs text-center mt-1 text-[#a0a0a0]">
+      <p className="text-xs text-center mt-1 text-[#8899aa]">
         Çöp ({tiles.length})
       </p>
     </div>

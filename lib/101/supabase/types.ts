@@ -16,28 +16,34 @@ export interface TileData {
 
 // Player hand in game
 export interface PlayerHand {
-  odlayerId: string
+  playerId: string
   tiles: TileData[]
 }
 
 // Opened sets on the table
 export interface OpenedSet {
+  id: string
   playerId: string
   tiles: TileData[]
   type: 'run' | 'set'
 }
 
+// Per-player discard: each seat position has at most one visible discard tile
+export type PlayerDiscards = Record<string, TileData | null>
+
 // Game state stored in database
 export interface GameStateData {
   hands: Record<string, TileData[]>
   deck: TileData[]
-  discardPile: TileData[]
+  playerDiscards: PlayerDiscards
   openedSets: OpenedSet[]
   indicatorTile: TileData | null
   okeyTile: { color: string; number: number } | null
   currentTurn: number
   turnStartTime: string
   hasDrawn: boolean
+  handOrder: Record<string, string[]>
+  flippedTiles: Record<string, string[]>
   gamePhase: 'waiting' | 'playing' | 'finished'
   winner: string | null
   finishType: 'normal' | 'okey' | 'elden' | 'yedi_cift' | null
@@ -96,6 +102,7 @@ export interface Database {
           status: 'waiting' | 'playing' | 'finished'
           is_paired: boolean
           is_folding: boolean
+          password: string | null
           player_count: number
           created_at: string
         }
@@ -106,6 +113,7 @@ export interface Database {
           status?: 'waiting' | 'playing' | 'finished'
           is_paired?: boolean
           is_folding?: boolean
+          password?: string | null
           player_count?: number
           created_at?: string
         }
@@ -116,6 +124,7 @@ export interface Database {
           status?: 'waiting' | 'playing' | 'finished'
           is_paired?: boolean
           is_folding?: boolean
+          password?: string | null
           player_count?: number
           created_at?: string
         }
@@ -127,6 +136,8 @@ export interface Database {
           user_id: string
           seat_position: number
           is_ready: boolean
+          is_connected: boolean
+          last_seen: string
           joined_at: string
         }
         Insert: {
@@ -135,6 +146,8 @@ export interface Database {
           user_id: string
           seat_position: number
           is_ready?: boolean
+          is_connected?: boolean
+          last_seen?: string
           joined_at?: string
         }
         Update: {
@@ -143,6 +156,8 @@ export interface Database {
           user_id?: string
           seat_position?: number
           is_ready?: boolean
+          is_connected?: boolean
+          last_seen?: string
           joined_at?: string
         }
       }
@@ -188,12 +203,14 @@ export interface Database {
           current_turn: number
           hands: Json
           deck: Json
-          discard_pile: Json
+          player_discards: Json
           opened_sets: Json
           indicator_tile: Json | null
           okey_tile: Json | null
           game_phase: string
           has_drawn: boolean
+          hand_order: Json
+          flipped_tiles: Json
           turn_start_time: string | null
           winner: string | null
           finish_type: string | null
@@ -205,12 +222,14 @@ export interface Database {
           current_turn?: number
           hands?: Json
           deck?: Json
-          discard_pile?: Json
+          player_discards?: Json
           opened_sets?: Json
           indicator_tile?: Json | null
           okey_tile?: Json | null
           game_phase?: string
           has_drawn?: boolean
+          hand_order?: Json
+          flipped_tiles?: Json
           turn_start_time?: string | null
           winner?: string | null
           finish_type?: string | null
@@ -222,12 +241,14 @@ export interface Database {
           current_turn?: number
           hands?: Json
           deck?: Json
-          discard_pile?: Json
+          player_discards?: Json
           opened_sets?: Json
           indicator_tile?: Json | null
           okey_tile?: Json | null
           game_phase?: string
           has_drawn?: boolean
+          hand_order?: Json
+          flipped_tiles?: Json
           turn_start_time?: string | null
           winner?: string | null
           finish_type?: string | null
@@ -285,12 +306,14 @@ export interface GameStateFromDB {
   current_turn: number
   hands: Json
   deck: Json
-  discard_pile: Json
+  player_discards: Json
   opened_sets: Json
   indicator_tile: Json | null
   okey_tile: Json | null
   game_phase: string
   has_drawn: boolean
+  hand_order: Json
+  flipped_tiles: Json
   turn_start_time: string | null
   winner: string | null
   finish_type: string | null
@@ -307,4 +330,3 @@ export interface RoomWithPlayers extends Room {
   players: RoomPlayerWithUser[]
   host?: { username: string; avatar_url: string | null }
 }
-
