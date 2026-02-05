@@ -28,7 +28,13 @@ export async function GET() {
       )
     }
 
-    return NextResponse.json({ rooms: rooms || [] })
+    // Mask password fields - only expose has_password boolean
+    const maskedRooms = (rooms || []).map((room: { password?: string | null;[key: string]: unknown }) => {
+      const { password, ...rest } = room
+      return { ...rest, has_password: !!password }
+    })
+
+    return NextResponse.json({ rooms: maskedRooms })
   } catch (error) {
     console.error('Rooms error:', error)
     return NextResponse.json(
@@ -42,7 +48,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const authHeader = request.headers.get('Authorization')
-    
+
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
         { error: 'Giriş yapmalısınız' },
@@ -52,7 +58,7 @@ export async function POST(request: Request) {
 
     const token = authHeader.substring(7)
     let decoded: { userId: string }
-    
+
     try {
       decoded = jwt.verify(token, JWT_SECRET) as { userId: string }
     } catch {

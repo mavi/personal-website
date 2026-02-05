@@ -23,8 +23,8 @@ export default function LobbyPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchRooms()
-      const interval = setInterval(fetchRooms, 5000)
+      fetchRooms() // Initial fetch shows loading
+      const interval = setInterval(() => fetchRooms(false), 5000) // Background refreshes are silent
       return () => clearInterval(interval)
     }
   }, [isAuthenticated, fetchRooms])
@@ -49,7 +49,7 @@ export default function LobbyPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar user={user} />
-      
+
       <main className="flex-1 container mx-auto px-4 py-8">
         {/* Rejoin banner */}
         {activeRoom && (
@@ -79,7 +79,7 @@ export default function LobbyPage() {
                 Oda Oluştur
               </button>
             </div>
-            
+
             <RoomList
               rooms={rooms}
               isLoading={roomsLoading}
@@ -87,14 +87,14 @@ export default function LobbyPage() {
               currentUserId={user?.id}
             />
           </div>
-          
+
           {/* Sidebar */}
           <div className="w-full lg:w-80">
             <OnlineUsers />
           </div>
         </div>
       </main>
-      
+
       {isCreateModalOpen && (
         <CreateRoomModal
           onClose={() => setIsCreateModalOpen(false)}

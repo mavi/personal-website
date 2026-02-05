@@ -15,8 +15,10 @@ export function useRoom(roomId?: string) {
   const [error, setError] = useState<string | null>(null)
 
   // Fetch all available rooms
-  const fetchRooms = useCallback(async () => {
-    setIsLoading(true)
+  const fetchRooms = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setIsLoading(true)
+    }
     setError(null)
 
     try {
@@ -27,7 +29,15 @@ export function useRoom(roomId?: string) {
         throw new Error(data.error || 'Odalar yüklenemedi')
       }
 
-      setRooms(data.rooms)
+      // Only update if rooms actually changed (compare by JSON stringification)
+      setRooms(prevRooms => {
+        const prevJson = JSON.stringify(prevRooms)
+        const newJson = JSON.stringify(data.rooms)
+        if (prevJson !== newJson) {
+          return data.rooms
+        }
+        return prevRooms
+      })
 
       // Check if user is in an active game (for rejoin)
       const sessionData = localStorage.getItem('okey101_session')
@@ -58,7 +68,9 @@ export function useRoom(roomId?: string) {
     } catch (err) {
       setError((err as Error).message)
     } finally {
-      setIsLoading(false)
+      if (showLoading) {
+        setIsLoading(false)
+      }
     }
   }, [])
 
@@ -255,7 +267,7 @@ export function useRoom(roomId?: string) {
     if (!roomId) return
 
     fetchRoom(roomId)
-    
+
     const interval = setInterval(() => {
       fetchRoom(roomId)
     }, 3000)

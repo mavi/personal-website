@@ -65,11 +65,18 @@ function RoomCard({ room, onJoin, currentUserId }: RoomCardProps) {
   const [isJoining, setIsJoining] = useState(false)
 
   const handleJoin = async () => {
+    // If room has password and we haven't shown password input yet, show it first
+    if (hasPassword && !showPasswordInput && !password) {
+      setShowPasswordInput(true)
+      setJoinError('Şifre gerekli')
+      return
+    }
+
     setIsJoining(true)
     setJoinError('')
-    
+
     const result = await onJoin(room.id, password || undefined)
-    
+
     if (!result.success) {
       if (result.requiresPassword) {
         setShowPasswordInput(true)
@@ -99,7 +106,7 @@ function RoomCard({ room, onJoin, currentUserId }: RoomCardProps) {
     finished: 'Bitti'
   }
 
-  const hasPassword = !!room.password
+  const hasPassword = !!(room as unknown as { has_password?: boolean }).has_password || !!room.password
 
   return (
     <div className="room-card">
@@ -158,8 +165,8 @@ function RoomCard({ room, onJoin, currentUserId }: RoomCardProps) {
         {room.status === 'waiting' && room.player_count < 4
           ? (hasPassword && !showPasswordInput ? '🔒 Katıl' : 'Katıl')
           : room.status === 'playing'
-          ? 'Devam Et'
-          : 'Dolu'}
+            ? 'Devam Et'
+            : 'Dolu'}
       </button>
     </div>
   )
