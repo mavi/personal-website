@@ -221,7 +221,7 @@ export default function RoomPage() {
           user={user}
           showBackButton
           onBack={handleLeave}
-          inGame={isPlaying}
+          inGame={true}
           onShowProfile={() => setShowProfileModal(true)}
           onShowHistory={() => setShowHistoryModal(true)}
         />
@@ -260,15 +260,13 @@ export default function RoomPage() {
           <ChatBox roomId={roomId} userId={user?.id || ''} username={user?.username || ''} />
         </div>
 
-        {/* Chat FAB - mobile (only when game NOT playing, or always on waiting) */}
-        {(!isPlaying || !isMobile) && (
-          <button
-            onClick={() => setShowChat(!showChat)}
-            className="lg:hidden fixed bottom-3 right-3 z-40 okey-btn okey-btn-primary rounded-full w-11 h-11 flex items-center justify-center shadow-lg text-lg"
-          >
-            💬
-          </button>
-        )}
+        {/* Chat FAB - mobile only (desktop uses sidebar) */}
+        <button
+          onClick={() => setShowChat(!showChat)}
+          className="lg:hidden fixed bottom-3 right-3 z-40 okey-btn okey-btn-primary rounded-full w-11 h-11 flex items-center justify-center shadow-lg text-lg"
+        >
+          💬
+        </button>
 
         {/* Chat overlay - mobile */}
         {showChat && (

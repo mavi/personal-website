@@ -138,7 +138,7 @@ export function ChatBox({ roomId, userId, username }: ChatBoxProps) {
           <button
             type="submit"
             disabled={isLoading || !newMessage.trim()}
-            className="okey-btn okey-btn-primary px-4 disabled:opacity-50"
+            className="okey-btn okey-btn-primary px-3 disabled:opacity-50 flex-shrink-0"
           >
             Gönder
           </button>
