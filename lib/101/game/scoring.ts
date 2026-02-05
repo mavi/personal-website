@@ -1,11 +1,13 @@
 import { Tile, isOkeyTile, calculateHandValue } from './tiles'
-import { 
-  TileColor, 
-  TileNumber, 
+import {
+  TileColor,
+  TileNumber,
   OKEY_PENALTY_VALUE,
   MULTIPLIER_OKEY_FINISH,
   MULTIPLIER_ELDEN_FINISH,
   MULTIPLIER_SEVEN_PAIRS,
+  MULTIPLIER_PAIRS_OPENING,
+  NOT_OPENED_PENALTY,
   PARTNER_MAP,
   SeatPosition
 } from './constants'
@@ -67,6 +69,8 @@ export function calculateFinalScores(
     id: string
     seatPosition: SeatPosition
     hand: Tile[]
+    hasOpened?: boolean
+    openedWithPairs?: boolean
   }>,
   winnerId: string,
   winnerSeat: SeatPosition,
@@ -75,11 +79,11 @@ export function calculateFinalScores(
   okeyDef: { color: TileColor; number: TileNumber }
 ): PlayerScore[] {
   const baseMultiplier = getFinishMultiplier(finishType)
-  
+
   return players.map(player => {
     const isWinner = player.id === winnerId
     const isPartnerOfWinner = gameMode === 'paired' && arePartners(player.seatPosition, winnerSeat)
-    
+
     // Winner gets 0 points
     if (isWinner) {
       return {
@@ -92,15 +96,32 @@ export function calculateFinalScores(
         isPartner: false
       }
     }
-    
+
+    // Check for açmama cezası (202 penalty) - player didn't open at all
+    if (player.hasOpened === false) {
+      return {
+        playerId: player.id,
+        seatPosition: player.seatPosition,
+        handValue: NOT_OPENED_PENALTY,
+        multiplier: 1,
+        finalScore: NOT_OPENED_PENALTY,
+        isWinner: false,
+        isPartner: isPartnerOfWinner
+      }
+    }
+
     // Calculate hand value
     const handValue = calculateHandValue(player.hand, okeyDef)
-    
+
     // Determine multiplier
     // In paired mode, partner's score is NOT multiplied
     // Only opponents get the multiplier
     let multiplier = 1
-    if (finishType !== 'normal') {
+
+    // Check for çiftten açma dezavantajı (x2 if opened with pairs)
+    if (player.openedWithPairs) {
+      multiplier = MULTIPLIER_PAIRS_OPENING
+    } else if (finishType !== 'normal') {
       if (gameMode === 'paired') {
         // In paired mode, only opponents get x2
         if (!isPartnerOfWinner) {
@@ -112,9 +133,9 @@ export function calculateFinalScores(
         multiplier = baseMultiplier
       }
     }
-    
+
     const finalScore = handValue * multiplier
-    
+
     return {
       playerId: player.id,
       seatPosition: player.seatPosition,
@@ -136,11 +157,11 @@ export function calculateTeamScores(
   const team1 = scores
     .filter(s => s.seatPosition === 0 || s.seatPosition === 2)
     .reduce((sum, s) => sum + s.finalScore, 0)
-  
+
   const team2 = scores
     .filter(s => s.seatPosition === 1 || s.seatPosition === 3)
     .reduce((sum, s) => sum + s.finalScore, 0)
-  
+
   return { team1, team2 }
 }
 
@@ -149,10 +170,10 @@ export function determineWinningTeam(
   scores: PlayerScore[]
 ): { winningTeam: 1 | 2; team1Score: number; team2Score: number } {
   const { team1, team2 } = calculateTeamScores(scores)
-  
+
   // Lower score wins (since scores represent penalty points)
   const winningTeam = team1 <= team2 ? 1 : 2
-  
+
   return { winningTeam, team1Score: team1, team2Score: team2 }
 }
 
@@ -160,9 +181,9 @@ export function determineWinningTeam(
 export function formatScoreSummary(result: GameResult): string {
   const winnerScore = result.scores.find(s => s.isWinner)
   if (!winnerScore) return ''
-  
+
   let summary = `${winnerScore.playerId} kazandı!`
-  
+
   if (result.finishType !== 'normal') {
     const finishTypeText = {
       'okey': 'Okey ile bitiş (x2)',
@@ -171,11 +192,11 @@ export function formatScoreSummary(result: GameResult): string {
     }[result.finishType]
     summary += ` - ${finishTypeText}`
   }
-  
+
   if (result.gameMode === 'paired') {
     summary += ' (Eşli oyun)'
   }
-  
+
   return summary
 }
 

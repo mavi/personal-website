@@ -33,6 +33,11 @@ export const OKEY_PENALTY_VALUE = 25 // Okey left in hand = 25 points
 export const MULTIPLIER_OKEY_FINISH = 2 // x2 for okey finish
 export const MULTIPLIER_ELDEN_FINISH = 2 // x2 for finishing without discarding
 export const MULTIPLIER_SEVEN_PAIRS = 2 // x2 for 7 pairs finish
+export const MULTIPLIER_PAIRS_OPENING = 2 // x2 penalty if opened with pairs and lost
+
+// Penalties
+export const NOT_OPENED_PENALTY = 202 // Penalty for not opening when game ends
+export const ISLER_TAS_PENALTY = 101 // Penalty for adding to opponent's set
 
 // Turn timer (in seconds)
 export const TURN_TIME_LIMIT = 60

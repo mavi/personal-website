@@ -10,6 +10,7 @@ export interface Player {
   seatPosition: SeatPosition
   isReady: boolean
   hasOpened: boolean
+  openedWithPairs: boolean
 }
 
 export interface OpenedSet {
@@ -71,7 +72,7 @@ export function initializeGame(
   const playerDiscards: PlayerDiscards = { 0: null, 1: null, 2: null, 3: null }
 
   return {
-    players: players.map(p => ({ ...p, hasOpened: false })),
+    players: players.map(p => ({ ...p, hasOpened: false, openedWithPairs: false })),
     hands,
     deck,
     playerDiscards,
@@ -124,23 +125,23 @@ export function handleDrawFromDeck(
   if (!isPlayerTurn(state, playerId)) {
     return { error: 'Sıra sizde değil' }
   }
-  
+
   if (state.hasDrawnThisTurn) {
     return { error: 'Bu turda zaten taş çektiniz' }
   }
-  
+
   if (state.gamePhase !== 'playing') {
     return { error: 'Oyun aktif değil' }
   }
 
   const { tile, newDeck } = drawFromDeck(state.deck)
-  
+
   if (!tile) {
     return { error: 'Deste boş' }
   }
 
   const newHand = addToHand(state.hands[playerId], tile)
-  
+
   return {
     ...state,
     deck: newDeck,
@@ -157,11 +158,11 @@ export function handleDrawFromDiscard(
   if (!isPlayerTurn(state, playerId)) {
     return { error: 'Sıra sizde değil' }
   }
-  
+
   if (state.hasDrawnThisTurn) {
     return { error: 'Bu turda zaten taş çektiniz' }
   }
-  
+
   if (state.gamePhase !== 'playing') {
     return { error: 'Oyun aktif değil' }
   }
@@ -181,7 +182,7 @@ export function handleDrawFromDiscard(
 
   const newHand = addToHand(state.hands[playerId], discardTile)
   const newDiscards = { ...state.playerDiscards, [leftSeat]: null }
-  
+
   return {
     ...state,
     playerDiscards: newDiscards,
@@ -199,11 +200,11 @@ export function handleDiscard(
   if (!isPlayerTurn(state, playerId)) {
     return { error: 'Sıra sizde değil' }
   }
-  
+
   if (!state.hasDrawnThisTurn) {
     return { error: 'Önce taş çekmelisiniz' }
   }
-  
+
   if (state.gamePhase !== 'playing') {
     return { error: 'Oyun aktif değil' }
   }
@@ -215,7 +216,7 @@ export function handleDiscard(
 
   const hand = state.hands[playerId]
   const tileIndex = hand.findIndex(t => t.id === tileId)
-  
+
   if (tileIndex === -1) {
     return { error: 'Taş bulunamadı' }
   }
@@ -232,13 +233,13 @@ export function handleDiscard(
     if (state.okeyDef && isOkeyTile(discardedTile, state.okeyDef)) {
       finishType = 'okey'
     }
-    
+
     return finishGame(state, playerId, finishType, newHand, newDiscards)
   }
 
   // Move to next turn
   const nextTurn = getNextTurn(state.currentTurn)
-  
+
   return {
     ...state,
     hands: { ...state.hands, [playerId]: newHand },
@@ -258,11 +259,11 @@ export function handleOpenSets(
   if (!isPlayerTurn(state, playerId)) {
     return { error: 'Sıra sizde değil' }
   }
-  
+
   if (state.gamePhase !== 'playing') {
     return { error: 'Oyun aktif değil' }
   }
-  
+
   if (!state.okeyDef) {
     return { error: 'Okey tanımlı değil' }
   }
@@ -290,11 +291,11 @@ export function handleOpenSets(
 
   // Get all tile IDs being opened
   const tileIdsToOpen = sets.flat().map(t => t.id)
-  
+
   // Verify player has all these tiles
   const playerHand = state.hands[playerId]
   const playerTileIds = new Set(playerHand.map(t => t.id))
-  
+
   for (const tileId of tileIdsToOpen) {
     if (!playerTileIds.has(tileId)) {
       return { error: 'Bu taşlardan bazıları elinizde yok' }
@@ -313,7 +314,7 @@ export function handleOpenSets(
   }))
 
   // Update player's opened status
-  const updatedPlayers = state.players.map(p => 
+  const updatedPlayers = state.players.map(p =>
     p.id === playerId ? { ...p, hasOpened: true } : p
   )
 
@@ -374,7 +375,7 @@ export function handleAddToSet(
   }
 
   const targetSet = state.openedSets[setIndex]
-  
+
   // Check if tile can be added
   const addResult = canAddToPer(targetSet.tiles, tile, state.okeyDef)
   if (!addResult.canAdd) {
@@ -391,7 +392,7 @@ export function handleAddToSet(
 
   // Remove tile from hand
   const newHand = hand.filter(t => t.id !== tileId)
-  
+
   // Check if player finished (elden)
   if (newHand.length === 0) {
     return finishGame(
@@ -419,7 +420,7 @@ export function handleSevenPairOpening(
   if (!isPlayerTurn(state, playerId)) {
     return { error: 'Sıra sizde değil' }
   }
-  
+
   if (state.gamePhase !== 'playing') {
     return { error: 'Oyun aktif değil' }
   }
@@ -437,7 +438,7 @@ export function handleSevenPairOpening(
   const tileIds = pairs.flat().map(t => t.id)
   const playerHand = state.hands[playerId]
   const playerTileIds = new Set(playerHand.map(t => t.id))
-  
+
   for (const tileId of tileIds) {
     if (!playerTileIds.has(tileId)) {
       return { error: 'Bu taşlardan bazıları elinizde yok' }
@@ -460,11 +461,13 @@ function finishGame(
   playerDiscards: PlayerDiscards
 ): GameEngineState {
   const winner = getPlayerById(state, winnerId)!
-  
+
   const playersWithHands = state.players.map(p => ({
     id: p.id,
     seatPosition: p.seatPosition,
-    hand: p.id === winnerId ? winnerHand : state.hands[p.id]
+    hand: p.id === winnerId ? winnerHand : state.hands[p.id],
+    hasOpened: p.hasOpened,
+    openedWithPairs: p.openedWithPairs
   }))
 
   calculateFinalScores(
@@ -533,3 +536,137 @@ export function handleTimeout(state: GameEngineState): GameEngineState {
     turnStartTime: new Date()
   }
 }
+
+// Open with 5 pairs (counts as opening, but x2 penalty if lost)
+export function handleFivePairOpening(
+  state: GameEngineState,
+  playerId: string,
+  pairs: Tile[][]
+): GameEngineState | { error: string } {
+  if (!isPlayerTurn(state, playerId)) {
+    return { error: 'Sıra sizde değil' }
+  }
+
+  if (state.gamePhase !== 'playing') {
+    return { error: 'Oyun aktif değil' }
+  }
+
+  const player = getPlayerById(state, playerId)
+  if (!player) {
+    return { error: 'Oyuncu bulunamadı' }
+  }
+
+  if (player.hasOpened) {
+    return { error: 'Zaten açtınız' }
+  }
+
+  // Validate 5 pairs
+  if (pairs.length !== 5) {
+    return { error: '5 çift gerekli' }
+  }
+
+  for (const pair of pairs) {
+    if (pair.length !== 2) {
+      return { error: 'Her çift 2 taş olmalı' }
+    }
+    if (pair[0].isJoker || pair[1].isJoker) {
+      return { error: 'Joker çift için kullanılamaz' }
+    }
+    if (pair[0].color !== pair[1].color || pair[0].number !== pair[1].number) {
+      return { error: 'Çiftler aynı taş olmalı (renk + numara)' }
+    }
+  }
+
+  // Verify player has all these tiles
+  const tileIds = pairs.flat().map(t => t.id)
+  const playerHand = state.hands[playerId]
+  const playerTileIds = new Set(playerHand.map(t => t.id))
+
+  for (const tileId of tileIds) {
+    if (!playerTileIds.has(tileId)) {
+      return { error: 'Bu taşlardan bazıları elinizde yok' }
+    }
+  }
+
+  // Update player's opened status with pairs flag
+  const updatedPlayers = state.players.map(p =>
+    p.id === playerId ? { ...p, hasOpened: true, openedWithPairs: true } : p
+  )
+
+  return {
+    ...state,
+    players: updatedPlayers
+  }
+}
+
+// Add tile to opponent's set (işler taş) - gives 101 penalty to the player
+export function handleAddToOpponentSet(
+  state: GameEngineState,
+  playerId: string,
+  tileId: string,
+  setId: string
+): GameEngineState & { islerTasPenalty?: { playerId: string; penalty: number } } | { error: string } {
+  if (!isPlayerTurn(state, playerId)) {
+    return { error: 'Sıra sizde değil' }
+  }
+
+  if (state.gamePhase !== 'playing') {
+    return { error: 'Oyun aktif değil' }
+  }
+
+  if (!state.okeyDef) {
+    return { error: 'Okey tanımlı değil' }
+  }
+
+  const player = getPlayerById(state, playerId)
+  if (!player || !player.hasOpened) {
+    return { error: 'Önce el açmalısınız' }
+  }
+
+  // Find the tile in player's hand
+  const hand = state.hands[playerId]
+  const tile = hand.find(t => t.id === tileId)
+  if (!tile) {
+    return { error: 'Taş elinizde bulunamadı' }
+  }
+
+  // Find the target set
+  const setIndex = state.openedSets.findIndex(s => s.id === setId)
+  if (setIndex === -1) {
+    return { error: 'Per bulunamadı' }
+  }
+
+  const targetSet = state.openedSets[setIndex]
+
+  // Check if this is opponent's set
+  if (targetSet.playerId === playerId) {
+    // If own set, use normal handleAddToSet
+    return handleAddToSet(state, playerId, tileId, setId)
+  }
+
+  // This is opponent's set - will incur 101 penalty
+  const addResult = canAddToPer(targetSet.tiles, tile, state.okeyDef)
+  if (!addResult.canAdd) {
+    return { error: addResult.error || 'Bu taş bu pere eklenemez' }
+  }
+
+  // Add tile to the set
+  const newSetTiles = addResult.position === 'start'
+    ? [tile, ...targetSet.tiles]
+    : [...targetSet.tiles, tile]
+
+  const newOpenedSets = [...state.openedSets]
+  newOpenedSets[setIndex] = { ...targetSet, tiles: newSetTiles }
+
+  // Remove tile from hand
+  const newHand = hand.filter(t => t.id !== tileId)
+
+  // Return with penalty info
+  return {
+    ...state,
+    hands: { ...state.hands, [playerId]: newHand },
+    openedSets: newOpenedSets,
+    islerTasPenalty: { playerId, penalty: 101 }
+  }
+}
+
