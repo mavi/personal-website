@@ -110,9 +110,12 @@ export async function POST(
             )
         }
 
-        // Check if player has already opened
+        // Check if player has already opened (via opened_sets OR opened_with_pairs)
         const openedSets = gameState.opened_sets || []
-        const hasOpened = openedSets.some((s: { playerId: string }) => s.playerId === decoded.userId)
+        const openedWithPairsMap = (gameState as GameStateRow & { opened_with_pairs?: Record<string, boolean> }).opened_with_pairs || {}
+        const hasOpenedViaSets = openedSets.some((s: { playerId: string }) => s.playerId === decoded.userId)
+        const hasOpenedViaPairs = openedWithPairsMap[decoded.userId] === true
+        const hasOpened = hasOpenedViaSets || hasOpenedViaPairs
 
         if (hasOpened) {
             return NextResponse.json(
@@ -121,17 +124,19 @@ export async function POST(
             )
         }
 
-        // Verify player has exactly 14 tiles
+        // Verify player has all these tiles (7 pairs = 14 tiles)
         const playerHand = gameState.hands[decoded.userId] || []
-        if (playerHand.length !== 14) {
+        const tileIds = pairs.flat().map((t: Tile) => t.id)
+
+        // Check that exactly 14 tiles are submitted
+        if (tileIds.length !== 14) {
             return NextResponse.json(
-                { error: '7 çift açmak için elinizde tam 14 taş olmalı' },
+                { error: '7 çift için tam 14 taş gerekli' },
                 { status: 400 }
             )
         }
 
-        // Verify player has all these tiles
-        const tileIds = pairs.flat().map((t: Tile) => t.id)
+        // Verify player has all submitted tiles
         const playerTileIds = new Set(playerHand.map((t: Tile) => t.id))
 
         for (const tileId of tileIds) {

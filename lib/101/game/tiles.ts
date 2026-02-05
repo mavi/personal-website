@@ -1,10 +1,10 @@
-import { 
-  COLORS, 
-  TILE_NUMBERS, 
-  TILES_PER_SET, 
+import {
+  COLORS,
+  TILE_NUMBERS,
+  TILES_PER_SET,
   JOKER_COUNT,
   TileColor,
-  TileNumber 
+  TileNumber
 } from './constants'
 
 export interface Tile {
@@ -60,7 +60,7 @@ export function shuffleDeck(deck: Tile[]): Tile[] {
   const shuffled = [...deck]
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
-    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
   }
   return shuffled
 }
@@ -89,25 +89,24 @@ export function canActAsOkey(tile: Tile, okeyDef: { color: TileColor; number: Ti
 
 // Get the point value of a tile
 export function getTileValue(tile: Tile, isInHand = true, okeyDef?: { color: TileColor; number: TileNumber }): number {
-  // If tile is joker and in hand, it's worth its represented value (context dependent)
-  // For simplicity, joker in hand is worth the average tile value
+  // If tile is joker and in hand, it's scored as the okey tile's value
   if (tile.isJoker) {
-    // In hand, joker represents whatever tile, we use its number
-    return tile.number
+    // Joker (sahte okey) in hand is worth the okey tile's number value
+    return okeyDef?.number ?? 1
   }
-  
+
   // If it's the okey tile and left in hand, it's worth 25 points
   if (isInHand && okeyDef && isOkeyTile(tile, okeyDef)) {
     return 25
   }
-  
+
   // Regular tiles are worth their number
   return tile.number
 }
 
 // Calculate total hand value
 export function calculateHandValue(
-  tiles: Tile[], 
+  tiles: Tile[],
   okeyDef: { color: TileColor; number: TileNumber }
 ): number {
   return tiles.reduce((sum, tile) => {
@@ -130,18 +129,18 @@ export function sortTiles(tiles: Tile[]): Tile[] {
     black: 2,
     yellow: 3
   }
-  
+
   return [...tiles].sort((a, b) => {
     // Jokers go to the end
     if (a.isJoker && !b.isJoker) return 1
     if (!a.isJoker && b.isJoker) return -1
     if (a.isJoker && b.isJoker) return 0
-    
+
     // Sort by color first
     if (colorOrder[a.color] !== colorOrder[b.color]) {
       return colorOrder[a.color] - colorOrder[b.color]
     }
-    
+
     // Then by number
     return a.number - b.number
   })
@@ -151,13 +150,13 @@ export function sortTiles(tiles: Tile[]): Tile[] {
 export function findPairs(tiles: Tile[]): Tile[][] {
   const pairs: Tile[][] = []
   const used = new Set<string>()
-  
+
   for (let i = 0; i < tiles.length; i++) {
     if (used.has(tiles[i].id) || tiles[i].isJoker) continue
-    
+
     for (let j = i + 1; j < tiles.length; j++) {
       if (used.has(tiles[j].id) || tiles[j].isJoker) continue
-      
+
       // Check if same color and number (exact pair)
       if (tiles[i].color === tiles[j].color && tiles[i].number === tiles[j].number) {
         pairs.push([tiles[i], tiles[j]])
@@ -167,7 +166,7 @@ export function findPairs(tiles: Tile[]): Tile[][] {
       }
     }
   }
-  
+
   return pairs
 }
 

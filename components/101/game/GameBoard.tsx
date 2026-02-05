@@ -248,21 +248,33 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
     const playerScores = room.players.map(p => {
       const hand = hands[p.user_id] || []
       const isW = p.user_id === gameState.winner
+
+      // Check if player has opened (via opened_sets or opened_with_pairs)
+      const openedSetsData = (gameState as unknown as { opened_sets?: OpenedSetData[] }).opened_sets || []
+      const openedWithPairsMap = (gameState as unknown as { opened_with_pairs?: Record<string, boolean> }).opened_with_pairs || {}
+      const hasOpenedViaSets = openedSetsData.some(s => s.playerId === p.user_id)
+      const hasOpenedViaPairs = openedWithPairsMap[p.user_id] === true
+      const hasOpened = hasOpenedViaSets || hasOpenedViaPairs
+
       let hv = 0
       if (!isW) {
-        hv = hand.reduce((s: number, t: TileType) => {
-          if (t.isJoker) return s + (okeyTile?.number ?? 1)
-          if (okeyTile && t.color === okeyTile.color && t.number === okeyTile.number) return s + 25
-          return s + t.number
-        }, 0)
+        // If player hasn't opened, they get 202 penalty
+        if (!hasOpened) {
+          hv = 202
+        } else {
+          hv = hand.reduce((s: number, t: TileType) => {
+            if (t.isJoker) return s + (okeyTile?.number ?? 1)
+            if (okeyTile && t.color === okeyTile.color && t.number === okeyTile.number) return s + 25
+            return s + t.number
+          }, 0)
+        }
       }
+
       // Check for openedWithPairs (x2 multiplier) or special finish type
-      const openedWithPairs = (gameState as unknown as { opened_with_pairs?: Record<string, boolean> }).opened_with_pairs
-      const hasOpenedWithPairs = openedWithPairs?.[p.user_id] || false
       let mul = 1
-      if (!isW) {
-        if (hasOpenedWithPairs) {
-          mul = 2 // ciftten acma x2
+      if (!isW && hasOpened) {  // Only apply multiplier if player opened normally
+        if (hasOpenedViaPairs) {
+          mul = 2 // ciftten açma x2
         } else if (gameState.finish_type && gameState.finish_type !== 'normal') {
           mul = 2 // okey/elden/yedi_cift x2
         }

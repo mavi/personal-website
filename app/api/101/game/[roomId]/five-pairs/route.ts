@@ -126,9 +126,12 @@ export async function POST(
             )
         }
 
-        // Check if player has already opened
+        // Check if player has already opened (via opened_sets OR opened_with_pairs)
         const openedSets = gameState.opened_sets || []
-        const hasOpened = openedSets.some((s: { playerId: string }) => s.playerId === decoded.userId)
+        const openedWithPairsMap = gameState.opened_with_pairs || {}
+        const hasOpenedViaSets = openedSets.some((s: { playerId: string }) => s.playerId === decoded.userId)
+        const hasOpenedViaPairs = openedWithPairsMap[decoded.userId] === true
+        const hasOpened = hasOpenedViaSets || hasOpenedViaPairs
 
         if (hasOpened) {
             return NextResponse.json(

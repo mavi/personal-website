@@ -32,7 +32,7 @@ export async function POST(
 ) {
   try {
     const authHeader = request.headers.get('Authorization')
-    
+
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
         { error: 'Giriş yapmalısınız' },
@@ -42,7 +42,7 @@ export async function POST(
 
     const token = authHeader.substring(7)
     let decoded: { userId: string }
-    
+
     try {
       decoded = jwt.verify(token, JWT_SECRET) as { userId: string }
     } catch {
@@ -136,7 +136,7 @@ export async function POST(
     // Check if player finished (0 tiles left)
     if (newHand.length === 0) {
       const finishType = isOkeyTile(discardedTile, okeyDef) ? 'okey' : 'normal'
-      
+
       // Get room for game mode
       const { data: roomData } = await db
         .from('rooms')
@@ -154,12 +154,23 @@ export async function POST(
 
       const allPlayers = (allPlayersData || []) as PlayerRow[]
 
-      // Calculate scores
-      const playersWithHands = allPlayers.map(p => ({
-        id: p.user_id,
-        seatPosition: p.seat_position as SeatPosition,
-        hand: newHands[p.user_id] || []
-      }))
+      // Get opened states from game state for penalty calculations
+      const openedSets = (gameState as GameStateRow & { opened_sets?: Array<{ playerId: string }> }).opened_sets || []
+      const openedWithPairsMap = (gameState as GameStateRow & { opened_with_pairs?: Record<string, boolean> }).opened_with_pairs || {}
+
+      // Calculate scores with opened status for each player
+      const playersWithHands = allPlayers.map(p => {
+        const hasOpenedViaSets = openedSets.some((s: { playerId: string }) => s.playerId === p.user_id)
+        const hasOpenedViaPairs = openedWithPairsMap[p.user_id] === true
+
+        return {
+          id: p.user_id,
+          seatPosition: p.seat_position as SeatPosition,
+          hand: newHands[p.user_id] || [],
+          hasOpened: hasOpenedViaSets || hasOpenedViaPairs,
+          openedWithPairs: hasOpenedViaPairs
+        }
+      })
 
       const scores = calculateFinalScores(
         playersWithHands,
@@ -210,11 +221,11 @@ export async function POST(
         }
       }
 
-      return NextResponse.json({ 
-        success: true, 
-        gameOver: true, 
+      return NextResponse.json({
+        success: true,
+        gameOver: true,
         winner: decoded.userId,
-        scores 
+        scores
       })
     }
 

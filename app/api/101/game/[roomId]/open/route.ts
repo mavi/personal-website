@@ -138,13 +138,15 @@ export async function POST(
       )
     }
 
-    // Check if player has opened before
+    // Check if player has opened before (via opened_sets or opened_with_pairs)
     const existingOpenedSets = gameState.opened_sets || []
-    const hasOpened = existingOpenedSets.some(
+    const openedWithPairsMap = (gameState as GameStateRow & { opened_with_pairs?: Record<string, boolean> }).opened_with_pairs || {}
+    const hasOpenedViaSets = existingOpenedSets.some(
       (s: { playerId: string }) => s.playerId === decoded.userId
     )
+    const hasOpenedViaPairs = openedWithPairsMap[decoded.userId] === true
+    const hasOpened = hasOpenedViaSets || hasOpenedViaPairs
 
-    // If first opening, need at least 101 points
     if (!hasOpened) {
       const openingValidation = validateOpening([tilesForSet], okeyDef)
       if (!openingValidation.isValid) {

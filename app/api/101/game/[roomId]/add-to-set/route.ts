@@ -116,9 +116,13 @@ export async function POST(
     const openedSets = gameState.opened_sets || []
 
     // Check if player has opened (must have opened to add to sets)
-    const hasOpened = openedSets.some(
+    // Player can be opened via opened_sets OR via opened_with_pairs (5-pair opening)
+    const openedWithPairsMap = (gameState as GameStateRow & { opened_with_pairs?: Record<string, boolean> }).opened_with_pairs || {}
+    const hasOpenedViaSets = openedSets.some(
       (s: { playerId: string }) => s.playerId === decoded.userId
     )
+    const hasOpenedViaPairs = openedWithPairsMap[decoded.userId] === true
+    const hasOpened = hasOpenedViaSets || hasOpenedViaPairs
 
     if (!hasOpened) {
       return NextResponse.json(

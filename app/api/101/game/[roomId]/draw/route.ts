@@ -25,7 +25,7 @@ export async function POST(
 ) {
   try {
     const authHeader = request.headers.get('Authorization')
-    
+
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
         { error: 'Giriş yapmalısınız' },
@@ -35,7 +35,7 @@ export async function POST(
 
     const token = authHeader.substring(7)
     let decoded: { userId: string }
-    
+
     try {
       decoded = jwt.verify(token, JWT_SECRET) as { userId: string }
     } catch {
@@ -114,7 +114,41 @@ export async function POST(
     let newPlayerDiscards = { ...playerDiscards }
 
     if (source === 'deck') {
-      const result = drawFromDeck(deck)
+      let currentDeck = deck
+
+      // If deck is empty, reshuffle discards back into deck
+      if (currentDeck.length === 0) {
+        const tilesToReshuffle: Tile[] = []
+        const clearedDiscards = { ...playerDiscards }
+
+        // Collect all discard tiles except the current player's left discard (they might want to draw it)
+        for (let seat = 0; seat < 4; seat++) {
+          const seatKey = seat.toString()
+          const discardedTile = playerDiscards[seatKey]
+          if (discardedTile) {
+            tilesToReshuffle.push(discardedTile)
+            clearedDiscards[seatKey] = null
+          }
+        }
+
+        if (tilesToReshuffle.length === 0) {
+          return NextResponse.json(
+            { error: 'Deste boş ve atılan taş yok' },
+            { status: 400 }
+          )
+        }
+
+        // Shuffle the collected tiles (Fisher-Yates)
+        for (let i = tilesToReshuffle.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1))
+            ;[tilesToReshuffle[i], tilesToReshuffle[j]] = [tilesToReshuffle[j], tilesToReshuffle[i]]
+        }
+
+        currentDeck = tilesToReshuffle
+        newPlayerDiscards = clearedDiscards
+      }
+
+      const result = drawFromDeck(currentDeck)
       if (!result.tile) {
         return NextResponse.json(
           { error: 'Deste boş' },
