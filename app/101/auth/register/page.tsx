@@ -1,0 +1,127 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { useAuth } from '@/lib/101/hooks/useAuth'
+
+export default function RegisterPage() {
+  const router = useRouter()
+  const { register, isLoading } = useAuth()
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+
+    if (!username.trim() || !password.trim()) {
+      setError('Kullanıcı adı ve şifre gerekli')
+      return
+    }
+
+    if (username.length < 3) {
+      setError('Kullanıcı adı en az 3 karakter olmalı')
+      return
+    }
+
+    if (password.length < 6) {
+      setError('Şifre en az 6 karakter olmalı')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError('Şifreler eşleşmiyor')
+      return
+    }
+
+    const result = await register(username, password)
+    
+    if (result.success) {
+      router.push('/101')
+    } else {
+      setError(result.error || 'Kayıt başarısız')
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="okey-card w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-[#d4af37] mb-2">Okey 101</h1>
+          <p className="text-[#a0a0a0]">Yeni hesap oluşturun</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="bg-[#ef4444]/20 border border-[#ef4444] rounded-lg p-3 text-[#ef4444] text-sm">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Kullanıcı Adı</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="okey-input"
+              placeholder="En az 3 karakter"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Şifre</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="okey-input"
+              placeholder="En az 6 karakter"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Şifre Tekrar</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="okey-input"
+              placeholder="Şifrenizi tekrar girin"
+              disabled={isLoading}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="okey-btn okey-btn-primary w-full py-3 disabled:opacity-50"
+          >
+            {isLoading ? 'Kayıt yapılıyor...' : 'Kayıt Ol'}
+          </button>
+        </form>
+
+        <div className="mt-6 text-center">
+          <p className="text-[#a0a0a0]">
+            Zaten hesabınız var mı?{' '}
+            <Link href="/101/auth/login" className="text-[#d4af37] hover:underline">
+              Giriş Yap
+            </Link>
+          </p>
+        </div>
+
+        <div className="mt-8 text-center">
+          <Link href="/" className="text-[#a0a0a0] hover:text-[#d4af37] text-sm">
+            ← Ana Sayfaya Dön
+          </Link>
+        </div>
+      </div>
+    </div>
+  )
+}
+

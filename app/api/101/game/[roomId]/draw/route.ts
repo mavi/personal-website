@@ -1,0 +1,175 @@
+import { NextResponse } from 'next/server'
+import jwt from 'jsonwebtoken'
+import { createClient } from '@/lib/101/supabase/server'
+import { drawFromDeck, drawFromDiscard, addToHand } from '@/lib/101/game/deck'
+import type { Tile } from '@/lib/101/game/tiles'
+
+const JWT_SECRET = process.env.JWT_SECRET || 'okey101-secret-key-change-in-production'
+
+interface GameStateRow {
+  current_turn: number
+  hands: Record<string, Tile[]>
+  deck: Tile[]
+  discard_pile: Tile[]
+  game_phase: string
+  has_drawn: boolean
+}
+
+interface PlayerRow {
+  seat_position: number
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ roomId: string }> }
+) {
+  try {
+    const authHeader = request.headers.get('Authorization')
+    
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Giriş yapmalısınız' },
+        { status: 401 }
+      )
+    }
+
+    const token = authHeader.substring(7)
+    let decoded: { userId: string }
+    
+    try {
+      decoded = jwt.verify(token, JWT_SECRET) as { userId: string }
+    } catch {
+      return NextResponse.json(
+        { error: 'Geçersiz token' },
+        { status: 401 }
+      )
+    }
+
+    const { roomId } = await params
+    const { source } = await request.json() // 'deck' or 'discard'
+    const supabase = await createClient()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any
+
+    // Get player's seat position
+    const { data: playerData } = await db
+      .from('room_players')
+      .select('seat_position')
+      .eq('room_id', roomId)
+      .eq('user_id', decoded.userId)
+      .single()
+
+    const player = playerData as PlayerRow | null
+
+    if (!player) {
+      return NextResponse.json(
+        { error: 'Bu odada değilsiniz' },
+        { status: 403 }
+      )
+    }
+
+    // Get game state
+    const { data: gameStateData, error: gameError } = await db
+      .from('game_states')
+      .select('*')
+      .eq('room_id', roomId)
+      .single()
+
+    const gameState = gameStateData as GameStateRow | null
+
+    if (gameError || !gameState) {
+      return NextResponse.json(
+        { error: 'Oyun bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    if (gameState.game_phase !== 'playing') {
+      return NextResponse.json(
+        { error: 'Oyun aktif değil' },
+        { status: 400 }
+      )
+    }
+
+    if (gameState.current_turn !== player.seat_position) {
+      return NextResponse.json(
+        { error: 'Sıra sizde değil' },
+        { status: 400 }
+      )
+    }
+
+    if (gameState.has_drawn) {
+      return NextResponse.json(
+        { error: 'Bu turda zaten taş çektiniz' },
+        { status: 400 }
+      )
+    }
+
+    const hands = gameState.hands
+    const deck = gameState.deck
+    const discardPile = gameState.discard_pile
+
+    let tile: Tile | null = null
+    let newDeck = deck
+    let newDiscardPile = discardPile
+
+    if (source === 'deck') {
+      const result = drawFromDeck(deck)
+      if (!result.tile) {
+        return NextResponse.json(
+          { error: 'Deste boş' },
+          { status: 400 }
+        )
+      }
+      tile = result.tile
+      newDeck = result.newDeck
+    } else if (source === 'discard') {
+      const result = drawFromDiscard(discardPile)
+      if (!result.tile) {
+        return NextResponse.json(
+          { error: 'Çöp boş' },
+          { status: 400 }
+        )
+      }
+      tile = result.tile
+      newDiscardPile = result.newPile
+    } else {
+      return NextResponse.json(
+        { error: 'Geçersiz kaynak' },
+        { status: 400 }
+      )
+    }
+
+    // Add tile to player's hand
+    const newHand = addToHand(hands[decoded.userId], tile)
+    const newHands = { ...hands, [decoded.userId]: newHand }
+
+    // Update game state
+    const { error: updateError } = await db
+      .from('game_states')
+      .update({
+        hands: newHands,
+        deck: newDeck,
+        discard_pile: newDiscardPile,
+        has_drawn: true,
+        updated_at: new Date().toISOString()
+      })
+      .eq('room_id', roomId)
+
+    if (updateError) {
+      console.error('Update error:', updateError)
+      return NextResponse.json(
+        { error: 'Oyun güncellenemedi' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({ success: true, tile })
+  } catch (error) {
+    console.error('Draw error:', error)
+    return NextResponse.json(
+      { error: 'Bir hata oluştu' },
+      { status: 500 }
+    )
+  }
+}
