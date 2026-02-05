@@ -45,7 +45,7 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
   // Get opponents in relative positions: left, top, right
   const getRelativePlayers = useCallback(() => {
     if (mySeat === -1) return { left: undefined, top: undefined, right: undefined }
-    
+
     const leftSeat = (mySeat + 3) % 4
     const topSeat = (mySeat + 2) % 4
     const rightSeat = (mySeat + 1) % 4
@@ -218,7 +218,7 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
             {player?.user?.username?.[0]?.toUpperCase() || '?'}
           </div>
         )}
-        
+
         <div className="flex flex-col gap-0.5">
           <span className={`player-name ${isAfk ? 'opacity-50' : ''}`}>
             {isAfk && '💤 '}
@@ -256,8 +256,21 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
           return s + t.number
         }, 0)
       }
-      const mul = (gameState.finish_type && gameState.finish_type !== 'normal' && !isW) ? 2 : 1
-      return { userId: p.user_id, name: p.user?.username || 'Oyuncu', handValue: hv, multiplier: mul, finalScore: hv * mul, isWinner: isW }
+      // Check for openedWithPairs (x2 multiplier) or special finish type
+      const openedWithPairs = (gameState as unknown as { opened_with_pairs?: Record<string, boolean> }).opened_with_pairs
+      const hasOpenedWithPairs = openedWithPairs?.[p.user_id] || false
+      let mul = 1
+      if (!isW) {
+        if (hasOpenedWithPairs) {
+          mul = 2 // ciftten acma x2
+        } else if (gameState.finish_type && gameState.finish_type !== 'normal') {
+          mul = 2 // okey/elden/yedi_cift x2
+        }
+      }
+      // Add isler tas penalties
+      const islerTasPenalties = (gameState as unknown as { isler_tas_penalties?: Record<string, number> }).isler_tas_penalties
+      const islerPenalty = islerTasPenalties?.[p.user_id] || 0
+      return { userId: p.user_id, name: p.user?.username || 'Oyuncu', handValue: hv, multiplier: mul, finalScore: (hv * mul) + islerPenalty, isWinner: isW }
     }).sort((a, b) => a.finalScore - b.finalScore)
 
     const fl: Record<string, string> = { normal: 'Normal Bitiş', okey: 'Okey Bitiş (x2)', elden: 'Elden Bitiş (x2)', yedi_cift: '7 Çift (x2)' }
@@ -305,7 +318,7 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
 
       {/* Game table grid */}
       <div className="game-table-container flex-1 min-h-0">
-        
+
         {/* TOP PLAYER */}
         <div className="player-top">
           {topPlayer ? (

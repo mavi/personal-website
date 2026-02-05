@@ -140,12 +140,64 @@ export function useGame(roomId: string) {
     }
   }, [roomId, clearSelection])
 
+  const openFivePairs = useCallback(async (pairs: { id: string }[][]) => {
+    try {
+      const token = getAuthToken()
+
+      const response = await fetch(`/api/101/game/${roomId}/five-pairs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ pairs })
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || '5 çift açılamadı')
+      }
+
+      clearSelection()
+      return { success: true, message: data.message }
+    } catch (err) {
+      return { success: false, error: (err as Error).message }
+    }
+  }, [roomId, clearSelection])
+
+  const openSevenPairs = useCallback(async (pairs: { id: string }[][]) => {
+    try {
+      const token = getAuthToken()
+
+      const response = await fetch(`/api/101/game/${roomId}/seven-pairs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ pairs })
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || '7 çift açılamadı')
+      }
+
+      clearSelection()
+      return { success: true, gameOver: data.gameOver, winner: data.winner, scores: data.scores }
+    } catch (err) {
+      return { success: false, error: (err as Error).message }
+    }
+  }, [roomId, clearSelection])
+
   return {
     selectedTiles,
     drawFromDeck,
     drawFromDiscard,
     discardTile,
     openSets,
-    addToSet
+    addToSet,
+    openFivePairs,
+    openSevenPairs
   }
 }

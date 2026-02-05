@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/101/supabase/server'
 import { drawFromDeck } from '@/lib/101/game/deck'
 import type { Tile } from '@/lib/101/game/tiles'
+import { ISLER_TAS_PENALTY, NOT_OPENED_PENALTY, MULTIPLIER_ELDEN_FINISH, MULTIPLIER_PAIRS_OPENING } from '@/lib/101/game/constants'
 import type { SeatPosition } from '@/lib/101/game/constants'
 
 const AFK_TIMEOUT_MS = 15_000 // 15 seconds
@@ -13,13 +14,16 @@ interface GameStateRow {
   hands: Record<string, Tile[]>
   deck: Tile[]
   player_discards: Record<string, Tile | null>
-  opened_sets: unknown[]
+  opened_sets: Array<{ id: string; playerId: string; tiles: Tile[]; type: string }>
+  indicator_tile: Tile | null
   okey_tile: { color: string; number: number } | null
   game_phase: string
   has_drawn: boolean
   turn_start_time: string | null
   winner: string | null
   finish_type: string | null
+  opened_with_pairs?: Record<string, boolean>
+  isler_tas_penalties?: Record<string, number>
 }
 
 interface PlayerRow {
@@ -27,6 +31,7 @@ interface PlayerRow {
   seat_position: number
   is_connected: boolean
   last_seen: string
+  has_opened?: boolean
 }
 
 interface RoomRow {
@@ -60,18 +65,49 @@ async function finishGameAutoWin(
     .update({ status: 'finished' })
     .eq('id', roomId)
 
-  // Record match
+  // Record match with proper penalties
   const finalScores: Record<string, number> = {}
+  const openedWithPairs = gameState.opened_with_pairs || {}
+  const islerTasPenalties = gameState.isler_tas_penalties || {}
+  const okeyDef = gameState.okey_tile
+
+  // Check which players have opened
+  const openedSets = gameState.opened_sets || []
+  const playersWhoOpened = new Set(openedSets.map((s: { playerId: string }) => s.playerId))
+
   for (const p of players) {
     if (p.user_id === winnerId) {
       finalScores[p.user_id] = 0
     } else {
-      const hand = gameState.hands[p.user_id] || []
-      let score = 0
-      for (const t of hand) {
-        score += t.number || 1
+      // Check for acmama penalty (didn't open at all)
+      if (!playersWhoOpened.has(p.user_id)) {
+        finalScores[p.user_id] = NOT_OPENED_PENALTY
+        continue
       }
-      finalScores[p.user_id] = score
+
+      // Calculate hand value
+      const hand = gameState.hands[p.user_id] || []
+      let handValue = 0
+      for (const t of hand) {
+        if (t.isJoker) {
+          handValue += okeyDef?.number || 1
+        } else if (okeyDef && t.color === okeyDef.color && t.number === okeyDef.number) {
+          handValue += 25 // Okey in hand penalty
+        } else {
+          handValue += t.number || 1
+        }
+      }
+
+      // Apply multiplier for ciftten acma
+      let multiplier = 1
+      if (openedWithPairs[p.user_id]) {
+        multiplier = MULTIPLIER_PAIRS_OPENING
+      }
+
+      // Add isler tas penalties
+      const islerPenalty = islerTasPenalties[p.user_id] || 0
+
+      finalScores[p.user_id] = (handValue * multiplier) + islerPenalty
     }
   }
 

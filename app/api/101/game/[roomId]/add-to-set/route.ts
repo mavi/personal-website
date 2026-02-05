@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken'
 import { createClient } from '@/lib/101/supabase/server'
 import { canAddToPer } from '@/lib/101/game/validation'
 import type { Tile } from '@/lib/101/game/tiles'
+import { ISLER_TAS_PENALTY, NOT_OPENED_PENALTY, MULTIPLIER_ELDEN_FINISH } from '@/lib/101/game/constants'
 import type { TileColor, TileNumber } from '@/lib/101/game/constants'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'okey101-secret-key-change-in-production'
@@ -14,6 +15,7 @@ interface GameStateRow {
   okey_tile: { color: TileColor; number: TileNumber }
   game_phase: string
   has_drawn: boolean
+  isler_tas_penalties?: Record<string, number>
 }
 
 interface PlayerRow {
@@ -144,6 +146,7 @@ export async function POST(
     }
 
     const targetSet = openedSets[setIndex]
+    const isOpponentSet = targetSet.playerId !== decoded.userId
 
     // Check if tile can be added
     const addResult = canAddToPer(targetSet.tiles, tile, okeyDef)
@@ -165,6 +168,16 @@ export async function POST(
     // Remove tile from hand
     const newHand = playerHand.filter((t: Tile) => t.id !== tileId)
     const newHands = { ...hands, [decoded.userId]: newHand }
+
+    // Track isler tas penalty if adding to opponent's set
+    let islerTasPenalties = gameState.isler_tas_penalties || {}
+    if (isOpponentSet) {
+      const currentPenalty = islerTasPenalties[decoded.userId] || 0
+      islerTasPenalties = {
+        ...islerTasPenalties,
+        [decoded.userId]: currentPenalty + ISLER_TAS_PENALTY
+      }
+    }
 
     // Check if player finished (elden)
     if (newHand.length === 0) {
@@ -251,6 +264,7 @@ export async function POST(
       .update({
         hands: newHands,
         opened_sets: newOpenedSets,
+        isler_tas_penalties: islerTasPenalties,
         updated_at: new Date().toISOString()
       })
       .eq('room_id', roomId)
