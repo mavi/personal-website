@@ -79,7 +79,7 @@ export async function POST(
       .select('room_id, seat_position, user_id, is_connected')
       .eq('room_id', roomId)
       .eq('user_id', decoded.userId)
-      .single()
+      .maybeSingle()
 
     const existingInRoom = existingInRoomData as PlayerRow | null
 
@@ -133,11 +133,9 @@ export async function POST(
       .select('room_id')
       .eq('user_id', decoded.userId)
       .neq('room_id', roomId)
-      .single()
+      .maybeSingle()
 
-    const existingPlayer = existingPlayerData as PlayerRow | null
-
-    if (existingPlayer) {
+    if (existingPlayerData) {
       return NextResponse.json(
         { error: 'Zaten başka bir odadasınız' },
         { status: 400 }
