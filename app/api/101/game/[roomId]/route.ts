@@ -4,6 +4,7 @@ import { drawFromDeck } from '@/lib/101/game/deck'
 import type { Tile } from '@/lib/101/game/tiles'
 import { ISLER_TAS_PENALTY, NOT_OPENED_PENALTY, MULTIPLIER_ELDEN_FINISH, MULTIPLIER_PAIRS_OPENING } from '@/lib/101/game/constants'
 import type { SeatPosition } from '@/lib/101/game/constants'
+import { isBot } from '@/lib/101/game/bot'
 
 const AFK_TIMEOUT_MS = 15_000 // 15 seconds
 
@@ -254,9 +255,11 @@ export async function GET(
     const turnTimedOut = gs.turn_start_time &&
       (now - new Date(gs.turn_start_time).getTime() > TURN_TIMEOUT_MS)
 
-    // AFK auto-play: check if current turn player is disconnected OR turn timed out
+    // Check if current player is a bot (bots play immediately)
+    const isBotTurn = currentTurnPlayer && isBot(currentTurnPlayer.user_id)
 
-    if (currentTurnPlayer && (!currentTurnPlayer.is_connected || turnTimedOut)) {
+    // AFK auto-play: check if current turn player is disconnected OR turn timed out OR is a bot
+    if (currentTurnPlayer && (!currentTurnPlayer.is_connected || turnTimedOut || isBotTurn)) {
       let updatedGs = { ...gs }
 
       if (!updatedGs.has_drawn) {

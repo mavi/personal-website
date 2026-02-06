@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { Room, RoomPlayer } from '@/lib/101/supabase/types'
+import { isBot } from '@/lib/101/game/bot'
 
 interface WaitingRoomProps {
   room: Room & { players: Array<RoomPlayer & { user?: { username: string; avatar_url: string | null } }> }
@@ -15,6 +16,69 @@ interface WaitingRoomProps {
 export function WaitingRoom({ room, currentUserId, isHost, onReady, onStart, onLeave }: WaitingRoomProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const handleAddBot = async () => {
+    setIsLoading(true)
+    setError('')
+    try {
+      const sessionData = localStorage.getItem('okey101_session')
+      if (!sessionData) {
+        setError('Oturum bulunamadı')
+        return
+      }
+      const { token } = JSON.parse(sessionData)
+
+      const res = await fetch(`/api/101/rooms/${room.id}/bot`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.error || 'Bot eklenemedi')
+      }
+    } catch (err) {
+      console.error('Add bot error:', err)
+      setError('Bot eklenirken hata oluştu')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleRemoveBot = async (botId: string) => {
+    setIsLoading(true)
+    setError('')
+    try {
+      const sessionData = localStorage.getItem('okey101_session')
+      if (!sessionData) {
+        setError('Oturum bulunamadı')
+        return
+      }
+      const { token } = JSON.parse(sessionData)
+
+      const res = await fetch(`/api/101/rooms/${room.id}/bot`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ botId })
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.error || 'Bot çıkarılamadı')
+      }
+    } catch (err) {
+      console.error('Remove bot error:', err)
+      setError('Bot çıkarılırken hata oluştu')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const currentPlayer = room.players.find(p => p.user_id === currentUserId)
   const isReady = currentPlayer?.is_ready || false
@@ -55,20 +119,37 @@ export function WaitingRoom({ room, currentUserId, isHost, onReady, onStart, onL
     if (!seat.player) {
       return (
         <div className="waiting-seat flex-col gap-1 px-4 py-3">
-          <span className="text-[#8899aa] text-sm">Kullanıcı</span>
-          <span className="text-[#8899aa] text-sm">Bekleniyor...</span>
+          {isHost ? (
+            <button
+              onClick={handleAddBot}
+              disabled={isLoading}
+              className="okey-btn okey-btn-secondary text-xs px-3 py-2"
+            >
+              🤖 Bot Ekle
+            </button>
+          ) : (
+            <>
+              <span className="text-[#8899aa] text-sm">Kullanıcı</span>
+              <span className="text-[#8899aa] text-sm">Bekleniyor...</span>
+            </>
+          )}
         </div>
       )
     }
 
     const p = seat.player
+    const playerIsBot = isBot(p.user_id)
+
     return (
-      <div className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
-        p.is_ready
-          ? 'border-[#22c55e] bg-[#22c55e]/10'
-          : 'border-[#1a3a5c] bg-[#0a1929]'
-      } ${isMe ? 'ring-1 ring-[#d4af37]/30' : ''}`}>
-        {p.user?.avatar_url ? (
+      <div className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${p.is_ready
+        ? 'border-[#22c55e] bg-[#22c55e]/10'
+        : 'border-[#1a3a5c] bg-[#0a1929]'
+        } ${isMe ? 'ring-1 ring-[#d4af37]/30' : ''} ${playerIsBot ? 'border-dashed' : ''}`}>
+        {playerIsBot ? (
+          <div className="w-10 h-10 rounded-full bg-[#1a3a5c] flex items-center justify-center text-xl flex-shrink-0">
+            🤖
+          </div>
+        ) : p.user?.avatar_url ? (
           <img src={p.user.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
         ) : (
           <div className="w-10 h-10 rounded-full bg-[#1a3a5c] flex items-center justify-center text-sm font-medium flex-shrink-0">
@@ -78,6 +159,7 @@ export function WaitingRoom({ room, currentUserId, isHost, onReady, onStart, onL
         <div className="flex-1 min-w-0">
           <p className="font-medium text-sm flex items-center gap-1 truncate">
             {p.user?.username || 'Oyuncu'}
+            {playerIsBot && <span className="text-[10px] text-[#8899aa]">🤖</span>}
             {p.user_id === room.host_id && <span className="text-[10px] text-[#d4af37]">👑</span>}
             {isMe && <span className="text-[10px] text-[#8899aa]">(Sen)</span>}
           </p>
@@ -85,6 +167,16 @@ export function WaitingRoom({ room, currentUserId, isHost, onReady, onStart, onL
             {p.is_ready ? '✓ Hazır' : 'Bekliyor...'}
           </p>
         </div>
+        {isHost && playerIsBot && (
+          <button
+            onClick={() => handleRemoveBot(p.user_id)}
+            disabled={isLoading}
+            className="text-[#ef4444] hover:text-[#ff6b6b] text-xs flex-shrink-0"
+            title="Botu Çıkar"
+          >
+            ✕
+          </button>
+        )}
         {room.is_paired && (
           <span className="text-[10px] text-[#8899aa] flex-shrink-0">
             {seat.position % 2 === 0 ? 'A' : 'B'}
@@ -134,7 +226,7 @@ export function WaitingRoom({ room, currentUserId, isHost, onReady, onStart, onL
             <div className="flex-shrink-0 w-48">
               {renderSeat(leftSeat, 'left')}
             </div>
-            
+
             {/* Center table info */}
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
@@ -164,8 +256,8 @@ export function WaitingRoom({ room, currentUserId, isHost, onReady, onStart, onL
               {room.players.length < 4
                 ? `${room.players.length}/4 Bekleniyor`
                 : allPlayersReady
-                ? 'Oyunu Başlat'
-                : 'Hazır Değil'}
+                  ? 'Oyunu Başlat'
+                  : 'Hazır Değil'}
             </button>
           ) : (
             <button
