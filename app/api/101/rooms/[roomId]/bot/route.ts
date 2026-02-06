@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
 import { createClient } from '@/lib/101/supabase/server'
-import { generateBotId, getBotName, BOT_USER_PREFIX } from '@/lib/101/game/bot'
+import { generateBotId, getBotName, isBot } from '@/lib/101/game/bot'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'okey101-secret-key-change-in-production'
 
@@ -120,7 +120,7 @@ export async function POST(
         }
 
         // Count existing bots to determine bot number
-        const existingBots = players.filter(p => p.user_id.startsWith(BOT_USER_PREFIX))
+        const existingBots = players.filter(p => isBot(p.user_id))
         const botNumber = existingBots.length + 1
         const botId = generateBotId()
         // Include short ID suffix to ensure uniqueness
@@ -219,7 +219,7 @@ export async function DELETE(
         const { roomId } = await params
         const { botId } = await request.json()
 
-        if (!botId || !botId.startsWith(BOT_USER_PREFIX)) {
+        if (!botId || !isBot(botId)) {
             return NextResponse.json(
                 { error: 'Geçersiz bot ID' },
                 { status: 400 }

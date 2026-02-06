@@ -1,23 +1,28 @@
 import type { Tile } from './tiles'
 
-// Bot player prefix for identification
-export const BOT_USER_PREFIX = 'bot_'
+// Bot player prefix for identification - used in username
+export const BOT_USER_PREFIX = 'Bot_'
 
 // Bot usernames
 export const BOT_NAMES = ['Bot 1', 'Bot 2', 'Bot 3', 'Bot 4']
 
 /**
  * Check if a user ID belongs to a bot
+ * Bot IDs start with 00000000-0000-0000-0000- (special reserved range)
  */
 export function isBot(userId: string): boolean {
-    return userId.startsWith(BOT_USER_PREFIX)
+    return userId.startsWith('00000000-0000-0000-0000-')
 }
 
 /**
- * Generate a unique bot ID
+ * Generate a unique bot ID using reserved UUID range
+ * Format: 00000000-0000-0000-0000-XXXXXXXXXXXX where X is random hex
  */
 export function generateBotId(): string {
-    return `${BOT_USER_PREFIX}${crypto.randomUUID()}`
+    const randomPart = Array.from({ length: 12 }, () =>
+        Math.floor(Math.random() * 16).toString(16)
+    ).join('')
+    return `00000000-0000-0000-0000-${randomPart}`
 }
 
 /**
