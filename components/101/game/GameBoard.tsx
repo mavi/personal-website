@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Tile, TileBack } from './Tile'
 import { PlayerHand } from './PlayerHand'
@@ -25,7 +25,7 @@ interface OpenedSetData {
 
 export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoardProps) {
   const router = useRouter()
-  const { selectedTiles, toggleTileSelection, clearSelection } = useGameStore()
+  const { selectedTiles, toggleTileSelection, clearSelection, handOrder } = useGameStore()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -35,12 +35,40 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
   const okeyTile = gameState.okey_tile as unknown as { color: TileColor; number: TileNumber } | null
   const indicatorTile = gameState.indicator_tile as unknown as TileType | null
   const openedSets = (gameState.opened_sets as unknown as OpenedSetData[]) || []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mustOpenOrReturn = (gameState as any).must_open_or_return || false
 
   const myPlayer = room.players.find(p => p.user_id === currentUserId)
   const mySeat = myPlayer?.seat_position ?? -1
   const myHand = hands[currentUserId] || []
   const isMyTurn = gameState.current_turn === mySeat
   const hasDrawn = gameState.has_drawn
+
+  // Turn timer: 60 seconds per turn
+  const TURN_TIME_LIMIT = 60
+  const [turnTimeRemaining, setTurnTimeRemaining] = useState(TURN_TIME_LIMIT)
+
+  useEffect(() => {
+    if (gameState.game_phase !== 'playing') return
+
+    const turnStartTime = gameState.turn_start_time
+    if (!turnStartTime) {
+      setTurnTimeRemaining(TURN_TIME_LIMIT)
+      return
+    }
+
+    const updateTimer = () => {
+      const startTime = new Date(turnStartTime).getTime()
+      const elapsed = Math.floor((Date.now() - startTime) / 1000)
+      const remaining = Math.max(0, TURN_TIME_LIMIT - elapsed)
+      setTurnTimeRemaining(remaining)
+    }
+
+    updateTimer()
+    const interval = setInterval(updateTimer, 1000)
+
+    return () => clearInterval(interval)
+  }, [gameState.turn_start_time, gameState.game_phase])
 
   // Get opponents in relative positions: left, top, right
   const getRelativePlayers = useCallback(() => {
@@ -132,6 +160,22 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Taş eklenemedi')
       clearSelection()
+    } catch (err) { setError((err as Error).message) }
+    finally { setIsLoading(false) }
+  }
+
+  // Return tile drawn from left (when player can't open)
+  const handleReturnTile = async () => {
+    if (isLoading) return
+    setIsLoading(true); setError('')
+    try {
+      const token = getAuthToken()
+      const res = await fetch(`/api/101/game/${room.id}/return-tile`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({})
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Taş geri verilemedi')
     } catch (err) { setError((err as Error).message) }
     finally { setIsLoading(false) }
   }
@@ -230,8 +274,8 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
           </div>
         </div>
 
-        {/* Opponent's discard tile (small) */}
-        {discardTile && position !== 'top' && (
+        {/* Opponent's discard tile (small) - visible for all positions */}
+        {discardTile && (
           <div className="ml-1">
             <Tile tile={discardTile} size="small" okeyTile={okeyTile} />
           </div>
@@ -347,9 +391,17 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
             <div className="waiting-seat">Kullanıcı Bekleniyor</div>
           )}
 
-          {/* Indicator & turn info */}
+          {/* Turn info (indicator is now in center) */}
           <div className="flex items-center gap-2 ml-auto">
-            {indicatorTile && <Tile tile={indicatorTile} size="small" />}
+            {/* Turn timer */}
+            <div className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${turnTimeRemaining <= 10
+                ? 'bg-[#ef4444]/20 text-[#ef4444] animate-pulse'
+                : turnTimeRemaining <= 30
+                  ? 'bg-[#f59e0b]/20 text-[#f59e0b]'
+                  : 'bg-[#1a3a5c] text-[#8899aa]'
+              }`}>
+              {turnTimeRemaining}s
+            </div>
             <div className={`px-2 py-0.5 rounded-full text-[11px] ${isMyTurn ? 'bg-[#22c55e]/20 text-[#22c55e] animate-pulse' : 'bg-[#1a3a5c] text-[#8899aa]'}`}>
               {isMyTurn ? (hasDrawn ? 'Taş At' : 'Taş Çek') : currentTurnName}
             </div>
@@ -379,7 +431,7 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
 
         {/* CENTER TABLE */}
         <div className="table-center">
-          {/* Deck and draw areas */}
+          {/* Deck and indicator area */}
           <div className="deck-area">
             {/* Deck (draw from center) */}
             <div
@@ -390,6 +442,14 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
               <div className="w-10 h-14 rounded bg-gradient-to-br from-[#d4af37] to-[#b8960f] shadow-lg absolute top-0.5 left-0.5" />
               <span className="deck-count">{deck.length}</span>
             </div>
+
+            {/* Indicator tile (shows current okey) - positioned right of deck */}
+            {indicatorTile && (
+              <div className="indicator-display ml-3">
+                <Tile tile={indicatorTile} size="normal" />
+                <span className="text-[9px] text-[#d4af37] mt-0.5 text-center block">Gösterge</span>
+              </div>
+            )}
           </div>
 
           {/* Opened sets */}
@@ -501,8 +561,35 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
             </div>
           </div>
 
+          {/* Must open or return warning */}
+          {isMyTurn && hasDrawn && mustOpenOrReturn && (
+            <div className="flex flex-col items-center gap-1 px-2 py-1.5 bg-[#f59e0b]/10 border border-[#f59e0b]/30 rounded mx-2">
+              <span className="text-[11px] text-[#f59e0b]">
+                ⚠️ Soldan taş çektiniz! El açın (101+) veya taşı geri verin.
+              </span>
+              <div className="flex gap-2">
+                {selectedTiles.length >= 3 && (
+                  <button
+                    onClick={handleOpenSets}
+                    disabled={isLoading}
+                    className="okey-btn okey-btn-primary okey-btn-sm"
+                  >
+                    {isLoading ? '...' : `Per Aç (${selectedTiles.length})`}
+                  </button>
+                )}
+                <button
+                  onClick={handleReturnTile}
+                  disabled={isLoading}
+                  className="okey-btn okey-btn-warning okey-btn-sm"
+                >
+                  {isLoading ? '...' : 'Taşı Geri Ver'}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Action buttons */}
-          {isMyTurn && hasDrawn && selectedTiles.length > 0 && (
+          {isMyTurn && hasDrawn && !mustOpenOrReturn && selectedTiles.length > 0 && (
             <div className="flex justify-center gap-1.5 px-2 py-1 bg-[#0a1929]/80">
               {selectedTiles.length === 1 && (
                 <button onClick={() => handleDiscard(selectedTiles[0])} disabled={isLoading} className="okey-btn okey-btn-danger okey-btn-sm">

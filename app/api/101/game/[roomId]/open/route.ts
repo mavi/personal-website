@@ -252,11 +252,14 @@ export async function POST(
     }
 
     // Just update the game state with opened sets
+    // Clear must_open_or_return flag if player successfully opened
     await db
       .from('game_states')
       .update({
         hands: newHands,
         opened_sets: newOpenedSets,
+        pending_tile: null,
+        must_open_or_return: false,
         updated_at: new Date().toISOString()
       })
       .eq('room_id', roomId)

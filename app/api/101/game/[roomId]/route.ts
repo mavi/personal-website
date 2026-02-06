@@ -245,11 +245,18 @@ export async function GET(
       return NextResponse.json({ gameState: updatedState || null })
     }
 
-    // AFK auto-play: check if current turn player is disconnected
+    // Turn timeout: check if turn_start_time is older than 60 seconds
+    const TURN_TIMEOUT_MS = 60_000 // 60 seconds
     const gs = gameState as GameStateRow
     const currentTurnPlayer = players.find(p => p.seat_position === gs.current_turn)
 
-    if (currentTurnPlayer && !currentTurnPlayer.is_connected) {
+    // Check for turn timeout (even if player is connected)
+    const turnTimedOut = gs.turn_start_time &&
+      (now - new Date(gs.turn_start_time).getTime() > TURN_TIMEOUT_MS)
+
+    // AFK auto-play: check if current turn player is disconnected OR turn timed out
+
+    if (currentTurnPlayer && (!currentTurnPlayer.is_connected || turnTimedOut)) {
       let updatedGs = { ...gs }
 
       if (!updatedGs.has_drawn) {

@@ -13,6 +13,10 @@ interface GameStateRow {
   player_discards: Record<string, Tile | null>
   game_phase: string
   has_drawn: boolean
+  opened_sets?: Array<{ playerId: string }>
+  opened_with_pairs?: Record<string, boolean>
+  pending_tile?: Tile | null // Tile drawn from left that must be opened with or returned
+  must_open_or_return?: boolean // Flag when player drew from left but hasn't opened
 }
 
 interface PlayerRow {
@@ -169,8 +173,49 @@ export async function POST(
         )
       }
 
+      // Check if player has opened (via opened_sets or opened_with_pairs)
+      const openedSets = gameState.opened_sets || []
+      const openedWithPairs = gameState.opened_with_pairs || {}
+      const hasOpened = openedSets.some(s => s.playerId === decoded.userId) ||
+        openedWithPairs[decoded.userId] === true
+
       tile = discardTile
       newPlayerDiscards = { ...playerDiscards, [leftSeat]: null }
+
+      // If player hasn't opened, they MUST open after drawing from left or return the tile
+      if (!hasOpened) {
+        // Add tile to hand first, then set the restriction flag
+        const newHand = addToHand(hands[decoded.userId], tile)
+        const newHands = { ...hands, [decoded.userId]: newHand }
+
+        const { error: updateError } = await db
+          .from('game_states')
+          .update({
+            hands: newHands,
+            deck: newDeck,
+            player_discards: newPlayerDiscards,
+            has_drawn: true,
+            pending_tile: tile,
+            must_open_or_return: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('room_id', roomId)
+
+        if (updateError) {
+          console.error('Update error:', updateError)
+          return NextResponse.json(
+            { error: 'Oyun güncellenemedi' },
+            { status: 500 }
+          )
+        }
+
+        return NextResponse.json({
+          success: true,
+          tile,
+          mustOpen: true,
+          message: 'Soldan taş çektiniz. El açmanız veya taşı geri vermeniz gerekiyor.'
+        })
+      }
     } else {
       return NextResponse.json(
         { error: 'Geçersiz kaynak' },

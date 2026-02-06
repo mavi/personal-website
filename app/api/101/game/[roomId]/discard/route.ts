@@ -112,6 +112,16 @@ export async function POST(
       )
     }
 
+    // Check if player must open or return the tile (drew from left without having opened)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mustOpenOrReturn = (gameState as any).must_open_or_return
+    if (mustOpenOrReturn) {
+      return NextResponse.json(
+        { error: 'Soldan taş çektiniz! Önce el açmanız veya taşı geri vermeniz gerekiyor.' },
+        { status: 400 }
+      )
+    }
+
     const hands = gameState.hands
     const playerDiscards = gameState.player_discards
     const okeyDef = gameState.okey_tile
@@ -127,6 +137,18 @@ export async function POST(
     }
 
     const discardedTile = hand[tileIndex]
+
+    // Check if tile is an okey - apply 101 penalty but allow discard
+    const isOkey = !discardedTile.isJoker &&
+      discardedTile.color === okeyDef.color &&
+      discardedTile.number === okeyDef.number
+
+    // Track okey discard penalty (will be added to final score)
+    let okeyDiscardPenalty = 0
+    if (isOkey) {
+      okeyDiscardPenalty = 101 // ISLER_TAS_PENALTY
+    }
+
     const newHand = [...hand.slice(0, tileIndex), ...hand.slice(tileIndex + 1)]
     const newHands = { ...hands, [decoded.userId]: newHand }
 
@@ -232,16 +254,32 @@ export async function POST(
     // Move to next turn
     const nextTurn = ((gameState.current_turn + 1) % 4) as SeatPosition
 
+    // Build update object
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateObj: any = {
+      hands: newHands,
+      player_discards: newPlayerDiscards,
+      current_turn: nextTurn,
+      has_drawn: false,
+      turn_start_time: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
+    // If okey was discarded, add penalty to isler_tas_penalties
+    if (okeyDiscardPenalty > 0) {
+      // Get existing penalties
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const existingPenalties = (gameState as any).isler_tas_penalties || {}
+      const currentPenalty = existingPenalties[decoded.userId] || 0
+      updateObj.isler_tas_penalties = {
+        ...existingPenalties,
+        [decoded.userId]: currentPenalty + okeyDiscardPenalty
+      }
+    }
+
     await db
       .from('game_states')
-      .update({
-        hands: newHands,
-        player_discards: newPlayerDiscards,
-        current_turn: nextTurn,
-        has_drawn: false,
-        turn_start_time: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .update(updateObj)
       .eq('room_id', roomId)
 
     return NextResponse.json({ success: true })

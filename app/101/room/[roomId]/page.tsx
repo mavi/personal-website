@@ -101,6 +101,26 @@ export default function RoomPage() {
     }
   }, [authLoading, isAuthenticated, router])
 
+  // Handle browser/tab close - leave room automatically
+  useEffect(() => {
+    if (!roomId || !isAuthenticated) return
+
+    const handleBeforeUnload = () => {
+      const sessionData = localStorage.getItem('okey101_session')
+      if (!sessionData) return
+      const { token } = JSON.parse(sessionData)
+
+      // Use sendBeacon for reliable delivery on page close
+      navigator.sendBeacon(
+        `/api/101/rooms/${roomId}/leave`,
+        new Blob([JSON.stringify({ token })], { type: 'application/json' })
+      )
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [roomId, isAuthenticated])
+
   // Heartbeat: keep server aware we're connected
   useEffect(() => {
     if (!roomId || !isAuthenticated) return

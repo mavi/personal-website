@@ -27,17 +27,31 @@ export async function POST(
 ) {
   try {
     const authHeader = request.headers.get('Authorization')
-    
-    if (!authHeader?.startsWith('Bearer ')) {
+    let token: string | null = null
+
+    // Support both Authorization header and token in body (for sendBeacon)
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.substring(7)
+    } else {
+      try {
+        const body = await request.json()
+        if (body.token) {
+          token = body.token
+        }
+      } catch {
+        // Body is not JSON or empty
+      }
+    }
+
+    if (!token) {
       return NextResponse.json(
         { error: 'Giriş yapmalısınız' },
         { status: 401 }
       )
     }
 
-    const token = authHeader.substring(7)
     let decoded: { userId: string }
-    
+
     try {
       decoded = jwt.verify(token, JWT_SECRET) as { userId: string }
     } catch {
@@ -205,7 +219,7 @@ export async function POST(
         // Transfer host to another player
         await db
           .from('rooms')
-          .update({ 
+          .update({
             host_id: remainingPlayers[0].user_id,
             player_count: room.player_count - 1
           })
