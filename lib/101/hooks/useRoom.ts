@@ -137,7 +137,6 @@ export function useRoom(roomId?: string) {
 
   // Join a room
   const joinRoom = useCallback(async (id: string, password?: string) => {
-    setIsLoading(true)
     setError(null)
 
     try {
@@ -168,8 +167,6 @@ export function useRoom(roomId?: string) {
     } catch (err) {
       setError((err as Error).message)
       return { success: false, error: (err as Error).message }
-    } finally {
-      setIsLoading(false)
     }
   }, [])
 

@@ -8,12 +8,15 @@ import { Navbar } from '@/components/101/layout/Navbar'
 import { RoomList } from '@/components/101/lobby/RoomList'
 import { CreateRoomModal } from '@/components/101/lobby/CreateRoomModal'
 import { OnlineUsers } from '@/components/101/lobby/OnlineUsers'
+import { ProfileHistoryModal } from '@/components/101/modals/ProfileHistoryModal'
 
 export default function LobbyPage() {
   const router = useRouter()
   const { user, isLoading: authLoading, isAuthenticated } = useAuth()
   const { rooms, activeRoom, isLoading: roomsLoading, fetchRooms, createRoom, joinRoom } = useRoom()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [profileModalTab, setProfileModalTab] = useState<'profile' | 'history'>('profile')
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -46,9 +49,14 @@ export default function LobbyPage() {
     return result
   }
 
+  const handleShowModal = (tab: 'profile' | 'history') => {
+    setProfileModalTab(tab)
+    setShowProfileModal(true)
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar user={user} />
+      <Navbar user={user} onShowModal={handleShowModal} />
 
       <main className="flex-1 container mx-auto px-4 py-8">
         {/* Rejoin banner */}
@@ -101,6 +109,17 @@ export default function LobbyPage() {
           onCreate={handleCreateRoom}
         />
       )}
+
+      {showProfileModal && user && (
+        <ProfileHistoryModal
+          username={user.username}
+          currentUserId={user.id}
+          isOwnProfile={true}
+          defaultTab={profileModalTab}
+          onClose={() => setShowProfileModal(false)}
+        />
+      )}
     </div>
   )
 }
+

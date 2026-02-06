@@ -8,8 +8,7 @@ import { Navbar } from '@/components/101/layout/Navbar'
 import { WaitingRoom } from '@/components/101/game/WaitingRoom'
 import { GameBoard } from '@/components/101/game/GameBoard'
 import { ChatBox } from '@/components/101/chat/ChatBox'
-import { ProfileModal } from '@/components/101/modals/ProfileModal'
-import { HistoryModal } from '@/components/101/modals/HistoryModal'
+import { ProfileHistoryModal } from '@/components/101/modals/ProfileHistoryModal'
 import { createClient } from '@/lib/101/supabase/client'
 import type { GameStateFromDB } from '@/lib/101/supabase/types'
 
@@ -49,7 +48,7 @@ export default function RoomPage() {
   const [gameState, setGameState] = useState<GameStateFromDB | null>(null)
   const [showChat, setShowChat] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
-  const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [profileModalTab, setProfileModalTab] = useState<'profile' | 'history'>('profile')
   const [error, setError] = useState<string | null>(null)
   const [orientationLocked, setOrientationLocked] = useState(false)
 
@@ -153,7 +152,7 @@ export default function RoomPage() {
       supabase.removeChannel(channel)
       clearInterval(interval)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, isAuthenticated])
 
   const fetchGameState = async () => {
@@ -222,8 +221,10 @@ export default function RoomPage() {
           showBackButton
           onBack={handleLeave}
           inGame={true}
-          onShowProfile={() => setShowProfileModal(true)}
-          onShowHistory={() => setShowHistoryModal(true)}
+          onShowModal={(tab) => {
+            setProfileModalTab(tab)
+            setShowProfileModal(true)
+          }}
         />
       </div>
 
@@ -304,19 +305,14 @@ export default function RoomPage() {
       )}
       {roomContent}
 
-      {/* In-game modals */}
+      {/* In-game modal */}
       {showProfileModal && user && (
-        <ProfileModal
+        <ProfileHistoryModal
           username={user.username}
           currentUserId={user.id}
           isOwnProfile={true}
+          defaultTab={profileModalTab}
           onClose={() => setShowProfileModal(false)}
-        />
-      )}
-      {showHistoryModal && user && (
-        <HistoryModal
-          currentUserId={user.id}
-          onClose={() => setShowHistoryModal(false)}
         />
       )}
     </div>

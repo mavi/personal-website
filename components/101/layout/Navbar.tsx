@@ -11,11 +11,10 @@ interface NavbarProps {
   showBackButton?: boolean
   onBack?: () => void
   inGame?: boolean
-  onShowProfile?: () => void
-  onShowHistory?: () => void
+  onShowModal?: (tab: 'profile' | 'history') => void
 }
 
-export function Navbar({ user, showBackButton, onBack, inGame, onShowProfile, onShowHistory }: NavbarProps) {
+export function Navbar({ user, showBackButton, onBack, inGame, onShowModal }: NavbarProps) {
   const router = useRouter()
   const { logout } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -27,18 +26,18 @@ export function Navbar({ user, showBackButton, onBack, inGame, onShowProfile, on
   }
 
   const handleProfileClick = (e: React.MouseEvent) => {
-    if (inGame && onShowProfile) {
+    if (onShowModal) {
       e.preventDefault()
       setMenuOpen(false)
-      onShowProfile()
+      onShowModal('profile')
     }
   }
 
   const handleHistoryClick = (e: React.MouseEvent) => {
-    if (inGame && onShowHistory) {
+    if (onShowModal) {
       e.preventDefault()
       setMenuOpen(false)
-      onShowHistory()
+      onShowModal('history')
     }
   }
 
