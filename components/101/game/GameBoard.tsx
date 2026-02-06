@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Tile, TileBack } from './Tile'
-import { PlayerHand } from './PlayerHand'
+import { TileRack } from './TileRack'
 import { useGameStore } from '@/lib/101/stores/gameStore'
 import type { HandAnalysis } from '@/lib/101/game/PerDetector'
 import type { Room, RoomPlayerWithUser, GameStateFromDB } from '@/lib/101/supabase/types'
@@ -26,10 +26,11 @@ interface OpenedSetData {
 
 export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoardProps) {
   const router = useRouter()
-  const { selectedTiles, toggleTileSelection, clearSelection, handOrder } = useGameStore()
+  const { selectedTiles, toggleTileSelection, clearSelection, handOrder, setHandOrder } = useGameStore()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [handAnalysis, setHandAnalysis] = useState<HandAnalysis | null>(null)
+
 
   const hands = gameState.hands as unknown as Record<string, TileType[]>
   const deck = gameState.deck as unknown as TileType[]
@@ -96,6 +97,56 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
   const leftDiscardTile = leftSeat !== undefined ? playerDiscards[leftSeat.toString()] : null
   // Right discard = my own discard tile (visible to right player)
   const myDiscardTile = playerDiscards[mySeat.toString()] ?? null
+
+  // Seri Diz - Sort tiles by series (runs and groups)
+  const handleSortBySeries = useCallback(() => {
+    if (!okeyTile || myHand.length === 0) return
+
+    // Group tiles by color
+    const byColor: Record<string, TileType[]> = {}
+    const groups: Record<number, TileType[]> = {}
+
+    myHand.forEach(tile => {
+      if (tile.isJoker) return // Handle jokers last
+
+      // For color runs
+      if (!byColor[tile.color]) byColor[tile.color] = []
+      byColor[tile.color].push(tile)
+
+      // For number groups
+      if (!groups[tile.number]) groups[tile.number] = []
+      groups[tile.number].push(tile)
+    })
+
+    // Sort each color group by number
+    Object.values(byColor).forEach(tiles => tiles.sort((a, b) => a.number - b.number))
+
+    // Build new order: color runs first, then number groups
+    const newOrder: string[] = []
+    const usedIds = new Set<string>()
+
+    // Add color runs (sorted by color)
+    const colorOrder = ['red', 'blue', 'black', 'yellow']
+    colorOrder.forEach(color => {
+      const tiles = byColor[color] || []
+      tiles.forEach(tile => {
+        if (!usedIds.has(tile.id)) {
+          newOrder.push(tile.id)
+          usedIds.add(tile.id)
+        }
+      })
+    })
+
+    // Add jokers at the end
+    myHand.filter(t => t.isJoker).forEach(tile => {
+      if (!usedIds.has(tile.id)) {
+        newOrder.push(tile.id)
+        usedIds.add(tile.id)
+      }
+    })
+
+    setHandOrder(newOrder)
+  }, [myHand, okeyTile, setHandOrder])
 
   const getAuthToken = () => {
     const sd = localStorage.getItem('okey101_session')
@@ -546,7 +597,7 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
 
             {/* Hand */}
             <div className="flex-1 min-w-0">
-              <PlayerHand
+              <TileRack
                 tiles={myHand}
                 selectedTiles={selectedTiles}
                 onTileClick={toggleTileSelection}
@@ -614,29 +665,43 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
             </div>
           )}
 
-          {/* Action buttons */}
+          {/* Action buttons - 101 Okey Plus Style */}
           {isMyTurn && hasDrawn && !mustOpenOrReturn && (
-            <div className="flex justify-center gap-1.5 px-2 py-1 bg-[#0a1929]/80">
-              {/* Auto open button - always visible when can open */}
-              {handAnalysis?.canOpen && (
-                <button onClick={handleAutoOpen} disabled={isLoading} className="okey-btn okey-btn-primary okey-btn-sm">
-                  {isLoading ? '...' : `Per Aç (${handAnalysis.detectedPers.length} per - ${handAnalysis.totalValue}p)`}
-                </button>
-              )}
-              {/* Discard selected tile */}
-              {selectedTiles.length === 1 && (
-                <button onClick={() => handleDiscard(selectedTiles[0])} disabled={isLoading} className="okey-btn okey-btn-danger okey-btn-sm">
-                  {isLoading ? '...' : 'At'}
-                </button>
-              )}
-              {/* Manual per open fallback */}
-              {selectedTiles.length >= 3 && (
-                <button onClick={handleOpenSets} disabled={isLoading} className="okey-btn okey-btn-secondary okey-btn-sm">
-                  {isLoading ? '...' : `Seçili Aç (${selectedTiles.length})`}
-                </button>
-              )}
+            <div className="action-buttons-panel">
+              {/* Seri Diz - Always available */}
+              <button onClick={handleSortBySeries} className="action-btn sort-series">
+                <span className="btn-icon">📊</span>
+                <span className="btn-label">Seri Diz</span>
+              </button>
+
+              {/* Seri Aç - Active when can open */}
+              <button
+                onClick={handleAutoOpen}
+                disabled={!handAnalysis?.canOpen || isLoading}
+                className={`action-btn open-series ${handAnalysis?.canOpen ? 'can-open' : ''}`}
+              >
+                <span className="btn-icon">✨</span>
+                <span className="btn-label">
+                  {handAnalysis?.canOpen ? `${handAnalysis.totalValue}p` : 'Seri Aç'}
+                </span>
+              </button>
+
+              {/* At - Discard selected tile */}
+              <button
+                onClick={() => selectedTiles.length === 1 && handleDiscard(selectedTiles[0])}
+                disabled={selectedTiles.length !== 1 || isLoading}
+                className="action-btn discard"
+              >
+                <span className="btn-icon">🗑️</span>
+                <span className="btn-label">At</span>
+              </button>
+
+              {/* Temizle - Clear selection */}
               {selectedTiles.length > 0 && (
-                <button onClick={clearSelection} className="okey-btn okey-btn-secondary okey-btn-sm">Temizle</button>
+                <button onClick={clearSelection} className="action-btn undo">
+                  <span className="btn-icon">↩️</span>
+                  <span className="btn-label">Temizle</span>
+                </button>
               )}
             </div>
           )}

@@ -571,9 +571,146 @@
   font-style: italic;
 }
 
-/* ============ TILE RACK (bottom hand area) ============ */
+/* ============ PROFESSIONAL SLOT-BASED TILE RACK ============ */
+.tile-rack-container {
+  background: linear-gradient(180deg, #c77d08 0%, #a86205 50%, #8b4513 100%);
+  padding: 0.5rem;
+  border-radius: 0.75rem 0.75rem 0 0;
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.15),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+    0 -4px 12px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.tile-rack-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23000' fill-opacity='.03' width='100' height='100'/%3E%3C/svg%3E");
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.rack-row {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+  padding: 2px 0;
+}
+
+.rack-slot {
+  width: 44px;
+  height: 56px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 0.15) 100%);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  position: relative;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.rack-slot.empty {
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.rack-slot.drag-over {
+  background: rgba(34, 197, 94, 0.3);
+  border: 2px solid rgba(34, 197, 94, 0.6);
+  transform: scale(1.05);
+}
+
+.rack-slot.has-tile {
+  background: transparent;
+  box-shadow: none;
+}
+
+.slot-tile {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.slot-tile.dragging {
+  opacity: 0.4;
+  transform: scale(0.9);
+}
+
+/* Rack info bar */
+.rack-info-bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  margin-top: 0.25rem;
+  font-size: 0.7rem;
+}
+
+.rack-info-bar .tile-count {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.rack-info-bar .selected-count {
+  color: #d4af37;
+  font-weight: 600;
+}
+
+/* Per score badge - professional style */
+.rack-info-bar .per-score-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.rack-info-bar .per-score-badge.can-open {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.4), rgba(16, 185, 129, 0.4));
+  border-color: #22c55e;
+  color: #fff;
+  animation: canOpenPulse 1.5s ease-in-out infinite;
+}
+
+.rack-info-bar .per-score-badge .score {
+  color: #22c55e;
+  font-weight: 700;
+}
+
+@keyframes canOpenPulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+  .rack-slot {
+    width: 38px;
+    height: 48px;
+  }
+
+  .rack-row {
+    gap: 2px;
+  }
+}
+
+/* Legacy tile-rack for backwards compatibility */
 .tile-rack {
-  background: linear-gradient(180deg, #d4870a 0%, #b8720a 100%);
+  background: linear-gradient(180deg, #c77d08 0%, #a86205 50%, #8b4513 100%);
   padding: 0.5rem;
   border-radius: 0.5rem 0.5rem 0 0;
   min-height: 0;
@@ -1094,4 +1231,161 @@
   50% {
     box-shadow: 0 0 0 4px rgba(34, 197, 94, 0);
   }
+}
+
+/* ============ ACTION BUTTONS PANEL (like 101 Okey Plus) ============ */
+.action-buttons-panel {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  padding: 0.5rem;
+  background: rgba(10, 25, 41, 0.9);
+  border-radius: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 56px;
+  border: 1px solid transparent;
+}
+
+.action-btn:active {
+  transform: scale(0.95);
+}
+
+.action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Seri Diz - Blue */
+.action-btn.sort-series {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  border-color: #1d4ed8;
+}
+
+.action-btn.sort-series:hover:not(:disabled) {
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+}
+
+/* Çift Diz - Purple */
+.action-btn.sort-pairs {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+  border-color: #6d28d9;
+}
+
+.action-btn.sort-pairs:hover:not(:disabled) {
+  background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+}
+
+/* Seri Aç - Green (when can open) */
+.action-btn.open-series {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  border-color: #15803d;
+}
+
+.action-btn.open-series:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4ade80, #22c55e);
+}
+
+.action-btn.open-series.can-open {
+  animation: openButtonPulse 1.5s ease-in-out infinite;
+}
+
+/* Çift Aç - Teal */
+.action-btn.open-pairs {
+  background: linear-gradient(135deg, #14b8a6, #0d9488);
+  color: white;
+  border-color: #0f766e;
+}
+
+/* İşle - Orange */
+.action-btn.add-tiles {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  border-color: #b45309;
+}
+
+/* Geri Al - Gray */
+.action-btn.undo {
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+  color: white;
+  border-color: #374151;
+}
+
+/* At - Red */
+.action-btn.discard {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border-color: #b91c1c;
+}
+
+.action-btn .btn-icon {
+  font-size: 1rem;
+  margin-bottom: 2px;
+}
+
+.action-btn .btn-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+@keyframes openButtonPulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+  }
+
+  50% {
+    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+  }
+}
+
+/* ============ TILE FLY ANIMATION ============ */
+@keyframes tileFlyIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-100px) scale(0.5);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes tileFlyOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-100px) scale(0.5);
+  }
+}
+
+.tile-fly-in {
+  animation: tileFlyIn 0.4s ease-out forwards;
+}
+
+.tile-fly-out {
+  animation: tileFlyOut 0.3s ease-in forwards;
 }
