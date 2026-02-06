@@ -1,50 +1,63 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/101/supabase/server'
 
-// GET - List online users (users who are currently in a room with recent activity)
+interface OnlineUser {
+    id: string
+    username: string
+    avatar_url: string | null
+}
+
+// GET - List online users (users who have been active recently)
 export async function GET() {
     try {
         const supabase = await createClient()
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const db = supabase as any
 
-        // Get users who have been active in the last 30 seconds (via room_players last_seen)
-        const thirtySecondsAgo = new Date(Date.now() - 30 * 1000).toISOString()
+        // Get users who have been active in the last 60 seconds
+        const sixtySecondsAgo = new Date(Date.now() - 60 * 1000).toISOString()
 
-        const { data: activePlayers, error } = await db
-            .from('room_players')
-            .select(`
-        user_id,
-        user:users!room_players_user_id_fkey(id, username, avatar_url),
-        room:rooms!room_players_room_id_fkey(id, name, status)
-      `)
-            .gte('last_seen', thirtySecondsAgo)
-            .eq('is_connected', true)
+        // Try to get users with last_seen (if column exists)
+        let onlineUsers: OnlineUser[] = []
 
-        if (error) {
-            console.error('Online users fetch error:', error)
-            return NextResponse.json(
-                { error: 'Çevrimiçi kullanıcılar yüklenemedi' },
-                { status: 500 }
-            )
-        }
+        // First try to get users by last_seen column
+        const { data: usersWithLastSeen, error: usersError } = await db
+            .from('users')
+            .select('id, username, avatar_url, last_seen')
+            .gte('last_seen', sixtySecondsAgo)
+            .limit(50)
 
-        // Deduplicate users and format response
-        const usersMap = new Map<string, { id: string; username: string; avatar_url: string | null; roomName: string | null; roomStatus: string | null }>()
+        if (!usersError && usersWithLastSeen && usersWithLastSeen.length > 0) {
+            onlineUsers = usersWithLastSeen.map((u: OnlineUser) => ({
+                id: u.id,
+                username: u.username,
+                avatar_url: u.avatar_url
+            }))
+        } else {
+            // Fallback: get users who are in active rooms (room_players with recent last_seen)
+            const { data: activePlayers } = await db
+                .from('room_players')
+                .select(`
+          user_id,
+          user:users!room_players_user_id_fkey(id, username, avatar_url)
+        `)
+                .gte('last_seen', sixtySecondsAgo)
+                .eq('is_connected', true)
 
-        for (const player of activePlayers || []) {
-            if (player.user && !usersMap.has(player.user.id)) {
-                usersMap.set(player.user.id, {
-                    id: player.user.id,
-                    username: player.user.username,
-                    avatar_url: player.user.avatar_url,
-                    roomName: player.room?.name || null,
-                    roomStatus: player.room?.status || null
-                })
+            if (activePlayers) {
+                const usersMap = new Map<string, OnlineUser>()
+                for (const player of activePlayers) {
+                    if (player.user && !usersMap.has(player.user.id)) {
+                        usersMap.set(player.user.id, {
+                            id: player.user.id,
+                            username: player.user.username,
+                            avatar_url: player.user.avatar_url
+                        })
+                    }
+                }
+                onlineUsers = Array.from(usersMap.values())
             }
         }
-
-        const onlineUsers = Array.from(usersMap.values())
 
         return NextResponse.json({ users: onlineUsers, count: onlineUsers.length })
     } catch (error) {

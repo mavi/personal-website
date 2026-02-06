@@ -72,6 +72,7 @@ export interface Database {
           wins: number
           losses: number
           created_at: string
+          last_seen: string | null
         }
         Insert: {
           id?: string
@@ -82,6 +83,7 @@ export interface Database {
           wins?: number
           losses?: number
           created_at?: string
+          last_seen?: string | null
         }
         Update: {
           id?: string
@@ -92,6 +94,7 @@ export interface Database {
           wins?: number
           losses?: number
           created_at?: string
+          last_seen?: string | null
         }
       }
       rooms: {

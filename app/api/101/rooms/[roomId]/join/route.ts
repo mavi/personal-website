@@ -24,7 +24,7 @@ export async function POST(
 ) {
   try {
     const authHeader = request.headers.get('Authorization')
-    
+
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
         { error: 'Giriş yapmalısınız' },
@@ -34,7 +34,7 @@ export async function POST(
 
     const token = authHeader.substring(7)
     let decoded: { userId: string }
-    
+
     try {
       decoded = jwt.verify(token, JWT_SECRET) as { userId: string }
     } catch {
@@ -173,7 +173,16 @@ export async function POST(
       })
 
     if (joinError) {
-      console.error('Join error:', joinError)
+      console.error('Join error details:', {
+        error: joinError,
+        code: joinError.code,
+        message: joinError.message,
+        details: joinError.details,
+        hint: joinError.hint,
+        roomId,
+        userId: decoded.userId,
+        seatPosition
+      })
       return NextResponse.json(
         { error: 'Odaya katılınamadı' },
         { status: 500 }

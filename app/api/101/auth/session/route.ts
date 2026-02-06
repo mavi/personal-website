@@ -7,7 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'okey101-secret-key-change-in-produ
 export async function GET(request: Request) {
   try {
     const authHeader = request.headers.get('Authorization')
-    
+
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
         { error: 'Token gerekli' },
@@ -44,6 +44,16 @@ export async function GET(request: Request) {
         { error: 'Kullanıcı bulunamadı' },
         { status: 404 }
       )
+    }
+
+    // Update last_seen for online tracking (ignore errors if column doesn't exist)
+    try {
+      await db
+        .from('users')
+        .update({ last_seen: new Date().toISOString() })
+        .eq('id', decoded.userId)
+    } catch {
+      // Column may not exist yet - that's fine
     }
 
     return NextResponse.json({ user })
