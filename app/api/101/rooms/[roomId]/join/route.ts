@@ -60,13 +60,21 @@ export async function POST(
     // Check if room exists
     const { data: roomData, error: roomError } = await db
       .from('rooms')
-      .select('*')
+      .select('id, status, player_count, password')
       .eq('id', roomId)
-      .single()
+      .maybeSingle()
+
+    if (roomError) {
+      console.error('Room fetch error:', roomError)
+      return NextResponse.json(
+        { error: `Oda sorgulanırken hata: ${roomError.message}` },
+        { status: 500 }
+      )
+    }
 
     const room = roomData as RoomRow | null
 
-    if (roomError || !room) {
+    if (!room) {
       return NextResponse.json(
         { error: 'Oda bulunamadı' },
         { status: 404 }
@@ -74,12 +82,20 @@ export async function POST(
     }
 
     // Check if user already exists in this room (for rejoin support)
-    const { data: existingInRoomData } = await db
+    const { data: existingInRoomData, error: existingError } = await db
       .from('room_players')
       .select('room_id, seat_position, user_id, is_connected')
       .eq('room_id', roomId)
       .eq('user_id', decoded.userId)
       .maybeSingle()
+
+    if (existingError) {
+      console.error('Existing player check error:', existingError)
+      return NextResponse.json(
+        { error: `Oyuncu kontrolünde hata: ${existingError.message}` },
+        { status: 500 }
+      )
+    }
 
     const existingInRoom = existingInRoomData as PlayerRow | null
 
@@ -91,7 +107,7 @@ export async function POST(
 
       // Rejoin: player was disconnected, reconnect them
       if (room.status === 'playing' || room.status === 'waiting') {
-        await db
+        const { error: reconnectError } = await db
           .from('room_players')
           .update({
             is_connected: true,
@@ -99,6 +115,14 @@ export async function POST(
           })
           .eq('room_id', roomId)
           .eq('user_id', decoded.userId)
+
+        if (reconnectError) {
+          console.error('Reconnect error:', reconnectError)
+          return NextResponse.json(
+            { error: `Yeniden bağlanma hatası: ${reconnectError.message}` },
+            { status: 500 }
+          )
+        }
 
         return NextResponse.json({ success: true, message: 'Odaya geri döndünüz', rejoin: true })
       }
@@ -128,12 +152,20 @@ export async function POST(
     }
 
     // Check if user is already in a different room
-    const { data: existingPlayerData } = await db
+    const { data: existingPlayerData, error: otherRoomError } = await db
       .from('room_players')
       .select('room_id')
       .eq('user_id', decoded.userId)
       .neq('room_id', roomId)
       .maybeSingle()
+
+    if (otherRoomError) {
+      console.error('Other room check error:', otherRoomError)
+      return NextResponse.json(
+        { error: `Diğer oda kontrolünde hata: ${otherRoomError.message}` },
+        { status: 500 }
+      )
+    }
 
     if (existingPlayerData) {
       return NextResponse.json(
@@ -143,10 +175,18 @@ export async function POST(
     }
 
     // Get current players to find an empty seat
-    const { data: playersData } = await db
+    const { data: playersData, error: playersError } = await db
       .from('room_players')
       .select('seat_position')
       .eq('room_id', roomId)
+
+    if (playersError) {
+      console.error('Players fetch error:', playersError)
+      return NextResponse.json(
+        { error: `Oyuncular alınırken hata: ${playersError.message}` },
+        { status: 500 }
+      )
+    }
 
     const players = (playersData || []) as PlayerRow[]
     const occupiedSeats = new Set(players.map(p => p.seat_position))
@@ -159,16 +199,21 @@ export async function POST(
     }
 
     // Add player to room
-    const { error: joinError } = await db
+    const insertData = {
+      room_id: roomId,
+      user_id: decoded.userId,
+      seat_position: seatPosition,
+      is_ready: false,
+      is_connected: true,
+      last_seen: new Date().toISOString()
+    }
+
+    console.log('Attempting to insert player:', insertData)
+
+    const { data: insertedData, error: joinError } = await db
       .from('room_players')
-      .insert({
-        room_id: roomId,
-        user_id: decoded.userId,
-        seat_position: seatPosition,
-        is_ready: false,
-        is_connected: true,
-        last_seen: new Date().toISOString()
-      })
+      .insert(insertData)
+      .select()
 
     if (joinError) {
       console.error('Join error details:', {
@@ -176,28 +221,33 @@ export async function POST(
         code: joinError.code,
         message: joinError.message,
         details: joinError.details,
-        hint: joinError.hint,
-        roomId,
-        userId: decoded.userId,
-        seatPosition
+        hint: joinError.hint
       })
       return NextResponse.json(
-        { error: 'Odaya katılınamadı' },
+        { error: `Odaya katılınamadı: ${joinError.message || joinError.code || 'Bilinmeyen hata'}` },
         { status: 500 }
       )
     }
 
+    console.log('Player inserted successfully:', insertedData)
+
     // Update player count
-    await db
+    const { error: updateError } = await db
       .from('rooms')
       .update({ player_count: room.player_count + 1 })
       .eq('id', roomId)
 
+    if (updateError) {
+      console.error('Player count update error:', updateError)
+      // Don't fail the join if count update fails, just log it
+    }
+
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Join room error:', error)
+    console.error('Join room unexpected error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Bilinmeyen hata'
     return NextResponse.json(
-      { error: 'Bir hata oluştu' },
+      { error: `Beklenmeyen hata: ${errorMessage}` },
       { status: 500 }
     )
   }
