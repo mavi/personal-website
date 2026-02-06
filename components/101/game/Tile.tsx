@@ -10,16 +10,23 @@ interface TileProps {
   selected?: boolean
   faceDown?: boolean
   draggable?: boolean
-  onClick?: () => void
+  isDragging?: boolean
+  onClick?: (e?: React.MouseEvent) => void
+  onDoubleClick?: () => void
   onDragStart?: (e: React.DragEvent) => void
   onDragEnd?: (e: React.DragEvent) => void
+  onTouchStart?: (e: React.TouchEvent) => void
+  onTouchMove?: (e: React.TouchEvent) => void
+  onTouchEnd?: (e: React.TouchEvent) => void
   isOkey?: boolean
   okeyTile?: { color: TileColor; number: TileNumber } | null
 }
 
-export function Tile({ 
-  tile, size = 'normal', selected, faceDown, draggable = false,
-  onClick, onDragStart, onDragEnd, isOkey, okeyTile 
+export function Tile({
+  tile, size = 'normal', selected, faceDown, draggable = false, isDragging,
+  onClick, onDoubleClick, onDragStart, onDragEnd,
+  onTouchStart, onTouchMove, onTouchEnd,
+  isOkey, okeyTile
 }: TileProps) {
   const sizeClasses: Record<string, string> = {
     small: 'okey-tile-sm',
@@ -39,7 +46,8 @@ export function Tile({
     selected ? 'selected' : '',
     tile.isJoker ? 'joker' : '',
     (isOkey || isOkeyTile) ? 'okey-highlight' : '',
-    faceDown ? 'face-down' : ''
+    faceDown ? 'face-down' : '',
+    isDragging ? 'tile-dragging' : ''
   ].filter(Boolean).join(' ')
 
   const handleDragStart = useCallback((e: React.DragEvent) => {
@@ -49,12 +57,16 @@ export function Tile({
   }, [tile.id, onDragStart])
 
   return (
-    <div 
-      className={classes} 
+    <div
+      className={classes}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       draggable={draggable && !faceDown}
       onDragStart={handleDragStart}
       onDragEnd={onDragEnd}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
     >
       {tile.isJoker ? (
         <span style={{ color: '#1f2937' }}>★</span>

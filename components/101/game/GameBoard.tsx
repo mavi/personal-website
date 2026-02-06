@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Tile, TileBack } from './Tile'
 import { PlayerHand } from './PlayerHand'
 import { useGameStore } from '@/lib/101/stores/gameStore'
+import type { HandAnalysis } from '@/lib/101/game/PerDetector'
 import type { Room, RoomPlayerWithUser, GameStateFromDB } from '@/lib/101/supabase/types'
 import type { Tile as TileType } from '@/lib/101/game/tiles'
 import type { TileColor, TileNumber } from '@/lib/101/game/constants'
@@ -28,6 +29,7 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
   const { selectedTiles, toggleTileSelection, clearSelection, handOrder } = useGameStore()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [handAnalysis, setHandAnalysis] = useState<HandAnalysis | null>(null)
 
   const hands = gameState.hands as unknown as Record<string, TileType[]>
   const deck = gameState.deck as unknown as TileType[]
@@ -132,6 +134,29 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
     finally { setIsLoading(false) }
   }
 
+  // Auto open - uses detected pers from hand analysis
+  const handleAutoOpen = async () => {
+    if (!handAnalysis || !handAnalysis.canOpen || isLoading) return
+
+    // Get all tile IDs from detected pers
+    const allPerTileIds = handAnalysis.detectedPers.flatMap(per => per.tiles.map(t => t.id))
+    if (allPerTileIds.length < 3) return
+
+    setIsLoading(true); setError('')
+    try {
+      const token = getAuthToken()
+      const res = await fetch(`/api/101/game/${room.id}/open`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ tileIds: allPerTileIds })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Per açılamadı')
+      clearSelection()
+    } catch (err) { setError((err as Error).message) }
+    finally { setIsLoading(false) }
+  }
+
+  // Manual open with selected tiles (fallback)
   const handleOpenSets = async () => {
     if (selectedTiles.length < 3 || isLoading) return
     setIsLoading(true); setError('')
@@ -395,10 +420,10 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
           <div className="flex items-center gap-2 ml-auto">
             {/* Turn timer */}
             <div className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${turnTimeRemaining <= 10
-                ? 'bg-[#ef4444]/20 text-[#ef4444] animate-pulse'
-                : turnTimeRemaining <= 30
-                  ? 'bg-[#f59e0b]/20 text-[#f59e0b]'
-                  : 'bg-[#1a3a5c] text-[#8899aa]'
+              ? 'bg-[#ef4444]/20 text-[#ef4444] animate-pulse'
+              : turnTimeRemaining <= 30
+                ? 'bg-[#f59e0b]/20 text-[#f59e0b]'
+                : 'bg-[#1a3a5c] text-[#8899aa]'
               }`}>
               {turnTimeRemaining}s
             </div>
@@ -528,6 +553,7 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
                 onTileDiscard={handleDiscard}
                 okeyTile={okeyTile}
                 isMyTurn={isMyTurn}
+                onHandAnalysis={setHandAnalysis}
               />
             </div>
 
@@ -568,13 +594,13 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
                 ⚠️ Soldan taş çektiniz! El açın (101+) veya taşı geri verin.
               </span>
               <div className="flex gap-2">
-                {selectedTiles.length >= 3 && (
+                {handAnalysis?.canOpen && (
                   <button
-                    onClick={handleOpenSets}
+                    onClick={handleAutoOpen}
                     disabled={isLoading}
                     className="okey-btn okey-btn-primary okey-btn-sm"
                   >
-                    {isLoading ? '...' : `Per Aç (${selectedTiles.length})`}
+                    {isLoading ? '...' : `Per Aç (${handAnalysis.detectedPers.length} per - ${handAnalysis.totalValue}p)`}
                   </button>
                 )}
                 <button
@@ -589,19 +615,29 @@ export function GameBoard({ room, gameState, currentUserId, onLeave }: GameBoard
           )}
 
           {/* Action buttons */}
-          {isMyTurn && hasDrawn && !mustOpenOrReturn && selectedTiles.length > 0 && (
+          {isMyTurn && hasDrawn && !mustOpenOrReturn && (
             <div className="flex justify-center gap-1.5 px-2 py-1 bg-[#0a1929]/80">
+              {/* Auto open button - always visible when can open */}
+              {handAnalysis?.canOpen && (
+                <button onClick={handleAutoOpen} disabled={isLoading} className="okey-btn okey-btn-primary okey-btn-sm">
+                  {isLoading ? '...' : `Per Aç (${handAnalysis.detectedPers.length} per - ${handAnalysis.totalValue}p)`}
+                </button>
+              )}
+              {/* Discard selected tile */}
               {selectedTiles.length === 1 && (
                 <button onClick={() => handleDiscard(selectedTiles[0])} disabled={isLoading} className="okey-btn okey-btn-danger okey-btn-sm">
                   {isLoading ? '...' : 'At'}
                 </button>
               )}
+              {/* Manual per open fallback */}
               {selectedTiles.length >= 3 && (
-                <button onClick={handleOpenSets} disabled={isLoading} className="okey-btn okey-btn-primary okey-btn-sm">
-                  {isLoading ? '...' : `Per Aç (${selectedTiles.length})`}
+                <button onClick={handleOpenSets} disabled={isLoading} className="okey-btn okey-btn-secondary okey-btn-sm">
+                  {isLoading ? '...' : `Seçili Aç (${selectedTiles.length})`}
                 </button>
               )}
-              <button onClick={clearSelection} className="okey-btn okey-btn-secondary okey-btn-sm">Temizle</button>
+              {selectedTiles.length > 0 && (
+                <button onClick={clearSelection} className="okey-btn okey-btn-secondary okey-btn-sm">Temizle</button>
+              )}
             </div>
           )}
         </div>
