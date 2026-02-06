@@ -123,7 +123,9 @@ export async function POST(
         const existingBots = players.filter(p => p.user_id.startsWith(BOT_USER_PREFIX))
         const botNumber = existingBots.length + 1
         const botId = generateBotId()
-        const botName = getBotName(botNumber)
+        // Include short ID suffix to ensure uniqueness
+        const shortId = botId.slice(-4)
+        const botName = `${getBotName(botNumber)}_${shortId}`
 
         // Create bot user
         const { error: userError } = await db
@@ -131,7 +133,7 @@ export async function POST(
             .insert({
                 id: botId,
                 username: botName,
-                password_hash: '', // Bots can't login
+                password_hash: 'BOT_USER_NO_LOGIN', // Bots can't login - this is not a valid bcrypt hash
                 avatar_url: null,
                 bio: 'Bot oyuncu',
                 wins: 0,
